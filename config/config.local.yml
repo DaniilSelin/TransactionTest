@@ -1,0 +1,23 @@
+postgres:
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  POSTGRES_USER: postgres
+  POSTGRES_PASS: changeme
+  POSTGRES_DB: transaction_system
+  POSTGRES_SslMODE: disable
+  POSTGRES_SCHEMA: TransactionSystem
+
+server:
+  SERVER_HOST: 0.0.0.0
+  SERVER_PORT: 8080
+
+logger:
+  level: "debug"
+  development: true
+  encoding: "json"
+  outputPaths: ["stdout"]
+  errorOutputPaths: ["stderr"]
+  encoderConfig:
+    messageKey: "message"
+    levelKey: "level"
+    timeKey: "timestamp"
