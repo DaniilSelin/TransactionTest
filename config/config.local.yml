@@ -1,23 +1,42 @@
 postgres:
-  POSTGRES_HOST: localhost
-  POSTGRES_PORT: 5432
-  POSTGRES_USER: postgres
-  POSTGRES_PASS: changeme
-  POSTGRES_DB: transaction_system
-  POSTGRES_SslMODE: disable
-  POSTGRES_SCHEMA: TransactionSystem
+  postgres:
+    ConnConfig:
+      Host: localhost
+      Port: 5432
+      Database: transactions
+      User: postgres
+      Password: changeme
+      ConnectTimeout: 5s
+
+    BeforeConnect: null # задается вне yml (internal/storage/postgres/pool.go)
+    AfterConnect: null
+    BeforeAcquire: null
+    AfterRelease: null
+
+    MaxConnLifetime: 10s
+    MaxConnLifetimeJitter: 0s
+    maxConnIdleTime: 5s
+    MaxConns: 10
+    MinConns: 5
+    HealthCheckPeriod: 5s
+    LazyConnect: false
+
+migration:
+  ConnectRetries: 5
+  ConnectRetryDelay: 5s
 
 server:
-  SERVER_HOST: 0.0.0.0
-  SERVER_PORT: 8080
+  host: 0.0.0.0
+  port: 8080
 
 logger:
-  level: "debug"
-  development: true
-  encoding: "json"
-  outputPaths: ["stdout"]
-  errorOutputPaths: ["stderr"]
-  encoderConfig:
-    messageKey: "message"
-    levelKey: "level"
-    timeKey: "timestamp"
+  logger:
+    Level: "debug"
+    Development: true
+    Encoding: "json"
+    OutputPaths: ["stdout"]
+    ErrorOutputPaths: ["stderr"]
+    EncoderConfig:
+      MessageKey: "message"
+      LevelKey: "level"
+      TimeKey: "timestamp"

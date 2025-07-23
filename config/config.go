@@ -4,30 +4,33 @@ import (
 	"os"
 	"log"
 	"fmt"
+	"time"
+    "reflect"
 
-	"gopkg.in/yaml.v2"
+    "github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ConfigFilePath = "config/config.local.yml"
 
 type ServerConfig struct {
-	Host string `yaml:"SERVER_HOST" env:"SERVER_HOST" env-default:"0.0.0.0"` 
-	Port int    `yaml:"SERVER_PORT" env:"SERVER_PORT" env-default:"8080"` 
+	Host string `mapstructure:"host"` 
+	Port int    `mapstructure:"port"` 
 }
 
-type DatabaseConfig struct {
-	Host          string `yaml:"POSTGRES_HOST" env:"POSTGRES_HOST" env-default:"localhost"`
-	Port          int    `yaml:"POSTGRES_PORT" env:"POSTGRES_PORT" env-default:"5432"`
-	User          string `yaml:"POSTGRES_USER" env:"POSTGRES_USER" env-default:"postgres"`
-	Password      string `yaml:"POSTGRES_PASS" env:"POSTGRES_PASS" env-default:"changeme"`
-	Dbname        string `yaml:"POSTGRES_DB" env:"POSTGRES_DB" env-default:"transaction_system"`
-	Sslmode       string `yaml:"POSTGRES_SslMODE" env:"POSTGRES_SslMODE" env-default:"disable"`
-	Schema		  string `yaml:"POSTGRES_SCHEMA" env:"POSTGRES_SCHEMA" env-default:"TransactionSystem"`
+type MigrationConfig struct {
+	ConnectRetries int `mapstructure:"ConnectRetries"` 
+	ConnectRetryDelay time.Duration `mapstructure:"ConnectRetryDelay"` 
+}
+
+type PostgresConfig struct {
+	Pool pgxpool.Config `mapstructure:"postgres"`
 }
 
 type LoggerConfig struct {
-	Logger zap.Config `yaml:",inline"`
+	Logger zap.Config `mapstructure:"logger"`
 }
 
 func (l *LoggerConfig) Build() (*zap.Logger, error) {
@@ -35,31 +38,61 @@ func (l *LoggerConfig) Build() (*zap.Logger, error) {
 }
 
 type Config struct {
-	Database DatabaseConfig `yaml:"postgres"`
+	Postgres PostgresConfig `yaml:"postgres"`
 	Server   ServerConfig   `yaml:"server"`
-	LoggerConfig   LoggerConfig   `yaml:"logger"`
+	Logger   LoggerConfig   `yaml:"logger"`
+	Migration MigrationConfig `yaml:"migration"`
+}
+
+// zapLevelHook: строка в zap.AtomicLevel
+func zapLevelHook(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
+    if to != reflect.TypeOf(zap.AtomicLevel{}) {
+        return data, nil
+    }
+
+    s, ok := data.(string)
+    if !ok {
+        return data, nil
+    }
+
+    var lvl zap.AtomicLevel
+    if err := lvl.UnmarshalText([]byte(s)); err != nil {
+        return nil, err
+    }
+    return lvl, nil
 }
 
 func LoadConfig() (Config, error) {
-	cfgFile := os.Getenv("CONFIG_FILE_PATH"); 
-	if cfgFile == "" {
-		cfgFile = ConfigFilePath
+	if cfgFile := os.Getenv("CONFIG_FILE_PATH"); cfgFile != "" {
+	    viper.SetConfigFile(cfgFile)
+	} else {
+	    viper.SetConfigFile(ConfigFilePath)
 		log.Println("WARN:failed to read CONFIG_FILE_PATH, using default path")
 	}
 
-	file, err := os.Open(cfgFile)
-	if err != nil {
-		return Config{}, fmt.Errorf("FATAL: error reading config file: %w", err)
+	if err := viper.ReadInConfig(); err != nil {
+	    return Config{}, fmt.Errorf("FATAL: error reading config file: %w", err)
 	}
-	defer file.Close()
 
 	var cfg Config
 
-	decoder := yaml.NewDecoder(file)
-	err = decoder.Decode(&cfg)
-	if err != nil {
-		return Config{}, fmt.Errorf("FATAL:unable to decode into struct: %w", err)
-	}
+	decoderConfig := &mapstructure.DecoderConfig{
+        DecodeHook: mapstructure.ComposeDecodeHookFunc(
+            mapstructure.StringToTimeDurationHookFunc(), // чтобы мапить durations
+            zapLevelHook,                                // хук для AtomicLevel
+        ),
+        Result:  &cfg,
+        TagName: "mapstructure",
+    }
+
+    dec, err := mapstructure.NewDecoder(decoderConfig)
+    if err != nil {
+        return Config{}, fmt.Errorf("FATAL:unable to create new decoder: %w", err)
+    }
+
+    if err := dec.Decode(viper.AllSettings()); err != nil {
+        return Config{}, fmt.Errorf("FATAL:unable to decode into struct: %w", err)
+    }
 
 	return cfg, nil
 }
