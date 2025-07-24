@@ -28,34 +28,28 @@ func main() {
 
 	appLogger := logger.GetLoggerFromCtx(ctx)
 
-	// 1. Загружаем конфиг
 	cfg, err := config.LoadConfig("config/config.yml")
 	if err != nil {
 		appLogger.Fatal(ctx, "Error loading config", zap.Error(err))
 	}
 
-	// 2. Подключаемся к БД
 	dbPool, err := database.InitDB(cfg)
 	if err != nil {
 		appLogger.Fatal(ctx, "Database connection failed", zap.Error(err))
 	}
 	defer dbPool.Close()
 
-	// 3. Запускаем миграции
 	err = database.RunMigrations(ctx, dbPool)
 	if err != nil {
 		appLogger.Fatal(ctx, "Migration failed", zap.Error(err))
 	}
 
-	// 4. Инициализируем репозитории
 	transactionRepo := repository.NewTransactionRepository(dbPool)
 	walletRepo := repository.NewWalletRepository(dbPool)
 
-	// 5. Инициализируем сервисы
 	transactionService := service.NewTransactionService(transactionRepo, walletRepo)
 	walletService := service.NewWalletService(walletRepo)
 
-	// 5.5. Создаем, при необходимости, начальные 10 кошельков
 	if flagEmpty, err := walletService.IsEmpty(ctx); err != nil {
 		appLogger.Fatal(ctx, "Failed to check if wallets table is empty", zap.Error(err))
 	} else if flagEmpty {
@@ -68,10 +62,8 @@ func main() {
 		}
 	}
 
-	// 6. Создаём роутер
 	router := delivery.NewRouter(ctx, transactionService, walletService)
 
-	// 7. Запускаем сервер
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	appLogger.Info(ctx, "Starting server", zap.String("address", addr))
 
@@ -86,7 +78,6 @@ func main() {
 		}
 	}()
 
-	// 8. Завршаем работу сервер (Graceful Shutdown)
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, os.Interrupt)

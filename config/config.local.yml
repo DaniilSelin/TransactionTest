@@ -1,29 +1,26 @@
 postgres:
-  postgres:
+  pool:
     ConnConfig:
       Host: localhost
       Port: 5432
       Database: transactions
       User: postgres
       Password: changeme
-      ConnectTimeout: 5s
-
-    BeforeConnect: null # задается вне yml (internal/storage/postgres/pool.go)
-    AfterConnect: null
-    BeforeAcquire: null
-    AfterRelease: null
+      ConnectTimeout: 15 # число секунд
 
     MaxConnLifetime: 10s
     MaxConnLifetimeJitter: 0s
-    maxConnIdleTime: 5s
+    MaxConnIdleTime: 5s
     MaxConns: 10
     MinConns: 5
     HealthCheckPeriod: 5s
-    LazyConnect: false
-
-migration:
+  Schema: "transaction_test"
   ConnectRetries: 5
   ConnectRetryDelay: 5s
+
+migrations:
+  driver: "custom-file-sprintf" # кастомный драйвер, подробности в документации
+  directory: "./migrations" # папка с миграциями
 
 server:
   host: 0.0.0.0

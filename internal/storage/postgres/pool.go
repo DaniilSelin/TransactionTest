@@ -1,61 +1,48 @@
 package postgres
 
 import (
-	"reflect"
-	"unsafe"
 	"context"
 	"time"
 	"fmt"
 
 	"TransactionTest/config"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-/*
-func forceSetConnString(cfg *pgxpool.Config, value string) {
-	v := reflect.ValueOf(cfg).Elem()
-	f := v.FieldByName("connString")
-	if !f.IsValid() {
-		panic("connString field not found in pgxpool.Config")
+
+func Connect(ctx context.Context, cfg *config.PostgresConfig) (*pgxpool.Pool, error) {
+	// устанавливаем search_path
+	connString := cfg.Pool.ConnConfig.ConnString()
+	connString = fmt.Sprintf("%s&search_path=%s,public", connString, cfg.Schema)
+	
+	poolCfg, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("FATAL: unable to parse pool config: %w", err)
 	}
-	ptr := unsafe.Pointer(f.UnsafeAddr())
-	reflect.NewAt(f.Type(), ptr).Elem().SetString(value)
-}*/
 
-// createdByParseConfig = true
-func forceSetCreatedByParseConfig(cfg *pgxpool.Config) {
-	v := reflect.ValueOf(cfg).Elem()
-	f := v.FieldByName("createdByParseConfig")
-	if !f.IsValid() {
-		panic("createdByParseConfig field not found in pgxpool.Config")
+	poolCfg.MaxConns = cfg.Pool.MaxConns
+	poolCfg.MinConns = cfg.Pool.MinConns
+	poolCfg.MaxConnLifetime = cfg.Pool.MaxConnLifetime
+	poolCfg.MaxConnLifetimeJitter = cfg.Pool.MaxConnLifetimeJitter
+	poolCfg.MaxConnIdleTime = cfg.Pool.MaxConnIdleTime
+	poolCfg.HealthCheckPeriod = cfg.Pool.HealthCheckPeriod
+
+	for attempt := 0; attempt <= cfg.ConnectRetries; attempt++ {
+		pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+		if err == nil {
+		return pool, nil
+		}
+		if attempt == cfg.ConnectRetries {
+		break
+		}
+		select {
+		case <-time.After(cfg.ConnectRetryDelay):
+		case <-ctx.Done():
+		return nil, ctx.Err()
+		}
 	}
-	ptr := unsafe.Pointer(f.UnsafeAddr())
-	reflect.NewAt(f.Type(), ptr).Elem().SetBool(true)
-}
 
-func Connect(ctx context.Context, poolCfg *pgxpool.Config, migCfg *config.MigrationConfig) (*pgxpool.Pool, error) {
-    // dsn := poolCfg.ConnConfig.ConnString()
-
-	forceSetCreatedByParseConfig(poolCfg)
-
-    var err error
-    for attempt := 0; attempt <= migCfg.ConnectRetries; attempt++ {
-        pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
-        if err == nil {
-            return pool, nil
-        }
-        if attempt == migCfg.ConnectRetries {
-            break
-        }
-        select {
-        case <-time.After(migCfg.ConnectRetryDelay):
-        case <-ctx.Done():
-            return nil, ctx.Err()
-        }
-    }
-
-    return nil, fmt.Errorf(
-        "FATAL: failed to connect after %d attempts: %w",
-        migCfg.ConnectRetries+1, err,
-    )
+	return nil, fmt.Errorf(
+		"FATAL: failed to connect after %d attempts: %w",
+		cfg.ConnectRetries+1, err,
+	)
 }

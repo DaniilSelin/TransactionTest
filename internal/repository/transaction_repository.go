@@ -24,7 +24,7 @@ func NewTransactionRepository(db *pgxpool.Pool) *TransactionRepository {
 }
 
 func (tr *TransactionRepository) CreateTransaction(ctx context.Context, from, to string, amount float64) (int64, error) {
-	query := `INSERT INTO "TransactionSystem".transactions (from_wallet, to_wallet, amount) 
+	query := `INSERT INTO transactions (from_wallet, to_wallet, amount) 
               VALUES ($1, $2, $3) RETURNING id`
 
 	var transactionId int64
@@ -46,7 +46,7 @@ func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to s
 
 	// Обновляем балансы кошельков
     updateQuery := `
-        UPDATE "TransactionSystem".wallets 
+        UPDATE wallets 
         SET balance = CASE 
             WHEN address = $1 THEN CAST($3 AS numeric)
             WHEN address = $2 THEN CAST($4 AS numeric) 
@@ -60,7 +60,7 @@ func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to s
 
 	// Создаем запись о транзакции
 	_, err = tx.Exec(ctx,
-		`INSERT INTO "TransactionSystem".transactions 
+		`INSERT INTO transactions 
 		(from_wallet, to_wallet, amount) 
 		VALUES ($1, $2, $3)`,
 		from, to, amount,
@@ -75,7 +75,7 @@ func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to s
 
 func (tr *TransactionRepository) GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, error) {
     query := `SELECT id, from_wallet, to_wallet, amount, created_at 
-    		  FROM "TransactionSystem".transactions WHERE id = $1`
+    		  FROM transactions WHERE id = $1`
 
     var t domain.Transaction
 
@@ -99,7 +99,7 @@ func (tr *TransactionRepository) GetTransactionById(ctx context.Context, id int6
 	
 func (tr *TransactionRepository) GetTransactionByInfo(ctx context.Context, from, to string, createdAt time.Time) (*domain.Transaction, error) {
     query := `SELECT id, from_wallet, to_wallet, amount, created_at
-              FROM "TransactionSystem".transactions 
+              FROM transactions 
               WHERE from_wallet = $1 AND to_wallet = $2 AND created_at = $3`
 
     var t domain.Transaction
@@ -123,7 +123,7 @@ func (tr *TransactionRepository) GetTransactionByInfo(ctx context.Context, from,
 }
 
 func (tr *TransactionRepository) RemoveTransaction(ctx context.Context, id int64) error {
-	query := `DELETE FROM "TransactionSystem".transactions WHERE id = $1`
+	query := `DELETE FROM transactions WHERE id = $1`
 
 	result, err := tr.db.Exec(ctx, query, id)
 	if err != nil {
@@ -140,7 +140,7 @@ func (tr *TransactionRepository) RemoveTransaction(ctx context.Context, id int64
 
 func (tr *TransactionRepository) GetLastTransactions(ctx context.Context, limit int) ([]domain.Transaction, error) {
     query := `SELECT id, from_wallet, to_wallet, amount, created_at 
-              FROM "TransactionSystem".transactions 
+              FROM transactions 
               ORDER BY created_at DESC
               LIMIT $1`
 

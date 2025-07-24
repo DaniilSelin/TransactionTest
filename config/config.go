@@ -5,12 +5,10 @@ import (
 	"log"
 	"fmt"
 	"time"
-    "reflect"
 
-    "github.com/mitchellh/mapstructure"
+    	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ConfigFilePath = "config/config.local.yml"
@@ -21,12 +19,48 @@ type ServerConfig struct {
 }
 
 type MigrationConfig struct {
-	ConnectRetries int `mapstructure:"ConnectRetries"` 
-	ConnectRetryDelay time.Duration `mapstructure:"ConnectRetryDelay"` 
+	Driver string `mapstructure:"driver"`
+	Dir    string `mapstructure:"directory"`
+}
+
+type ConnConfig struct {
+	Host            string `mapstructure:"Host"`
+	Port            int    `mapstructure:"Port"`
+	Database        string `mapstructure:"Database"`
+	User            string `mapstructure:"User"`
+	Password        string `mapstructure:"Password"`
+	SSLMode         string `mapstructure:"SSLMode"`
+	ConnectTimeout  int `mapstructure:"ConnectTimeout"`
+}
+
+func (c *ConnConfig) ConnString() string {
+    return fmt.Sprintf(
+        "postgres://%s:%s@%s:%d/%s?sslmode=%s&connect_timeout=%d",
+        c.User,
+        c.Password,
+        c.Host,
+        c.Port,
+        c.Database,
+        c.SSLMode,
+        c.ConnectTimeout,
+    )
+}
+
+type PostgresPoolConfig struct {
+	ConnConfig            ConnConfig `mapstructure:"ConnConfig"`
+	MaxConnLifetime       time.Duration `mapstructure:"MaxConnLifetime"`
+	MaxConnLifetimeJitter time.Duration `mapstructure:"MaxConnLifetimeJitter"`
+	MaxConnIdleTime time.Duration `mapstructure:"MaxConnIdleTime"`
+	MaxConns int32 `mapstructure:"MaxConns"`
+	MinConns int32 `mapstructure:"MinConns"`
+	HealthCheckPeriod time.Duration `mapstructure:"HealthCheckPeriod"`
 }
 
 type PostgresConfig struct {
-	Pool pgxpool.Config `mapstructure:"postgres"`
+	Pool PostgresPoolConfig `mapstructure:"pool"`
+	ConnectRetries int `mapstructure:"ConnectRetries"` 
+	ConnectRetryDelay time.Duration `mapstructure:"ConnectRetryDelay"` 
+	Schema string `mapstructure:"Schema"`
 }
 
 type LoggerConfig struct {
@@ -41,25 +75,7 @@ type Config struct {
 	Postgres PostgresConfig `yaml:"postgres"`
 	Server   ServerConfig   `yaml:"server"`
 	Logger   LoggerConfig   `yaml:"logger"`
-	Migration MigrationConfig `yaml:"migration"`
-}
-
-// zapLevelHook: строка в zap.AtomicLevel
-func zapLevelHook(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
-    if to != reflect.TypeOf(zap.AtomicLevel{}) {
-        return data, nil
-    }
-
-    s, ok := data.(string)
-    if !ok {
-        return data, nil
-    }
-
-    var lvl zap.AtomicLevel
-    if err := lvl.UnmarshalText([]byte(s)); err != nil {
-        return nil, err
-    }
-    return lvl, nil
+	Migrations MigrationConfig `yaml:"migrations"`
 }
 
 func LoadConfig() (Config, error) {
