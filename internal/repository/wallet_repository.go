@@ -2,28 +2,27 @@ package repository
 
 import (
     "context"
+	"log"
     "fmt"
     "errors"
 
-    "TransactionSystem/internal/domain"
+    "TransactionTest/internal/domain"
 
-    "github.com/jackc/pgx/v4/pgxpool"
     "github.com/jackc/pgx/v4"
 )
 
 var ErrWalletNotFound = errors.New("wallet not found")
 
-// Менеджер для кошельков
 type WalletRepository struct {
-	db *pgxpool.Pool
+	db DBInterface
 }
 
-func NewWalletRepository(db *pgxpool.Pool) *WalletRepository {
+func NewWalletRepository(db DBInterface) *WalletRepository {
 	return &WalletRepository{db: db}
 }
 
 func (wr *WalletRepository) CreateWallet(ctx context.Context, address string, balance float64) error {
-	query := `INSERT INTO "TransactionSystem".wallets (address, balance) VALUES ($1, $2)`
+	query := `INSERT INTO wallets (address, balance) VALUES ($1, $2)`
 
 	_, err := wr.db.Exec(ctx, query, address, balance)
 	if err != nil {
@@ -34,7 +33,7 @@ func (wr *WalletRepository) CreateWallet(ctx context.Context, address string, ba
 }
 
 func (wr *WalletRepository) GetWalletBalance(ctx context.Context, address string) (float64, error) {
-	query := `SELECT balance FROM "TransactionSystem".wallets WHERE address = $1`
+	query := `SELECT balance FROM wallets WHERE address = $1`
 
 	var balance float64
 	
@@ -51,7 +50,7 @@ func (wr *WalletRepository) GetWalletBalance(ctx context.Context, address string
 
 func (wr *WalletRepository) GetWallet(ctx context.Context, address string) (*domain.Wallet, error) {
     query := `SELECT address, balance, created_at 
-    		  FROM "TransactionSystem".wallets WHERE address = $1`
+    		  FROM wallets WHERE address = $1`
 
     var w domain.Wallet
 
@@ -72,7 +71,7 @@ func (wr *WalletRepository) GetWallet(ctx context.Context, address string) (*dom
 }
 
 func (wr *WalletRepository) UpdateWalletBalabnce(ctx context.Context, address string, balance float64) error {
-	query := `UPDATE "TransactionSystem".wallets SET balance = $1 WHERE address = $2`
+	query := `UPDATE wallets SET balance = $1 WHERE address = $2`
 
 	result, err := wr.db.Exec(ctx, query, balance, address)
     if err != nil {
@@ -90,7 +89,7 @@ func (wr *WalletRepository) UpdateWalletBalabnce(ctx context.Context, address st
 }
 
 func (wr *WalletRepository) RemoveWallet(ctx context.Context, address string) error {
-	query := `DELETE FROM "TransactionSystem".wallets WHERE address = $1`
+	query := `DELETE FROM wallets WHERE address = $1`
 
 	result, err := wr.db.Exec(ctx, query, address)
 	if err != nil {
@@ -108,7 +107,7 @@ func (wr *WalletRepository) RemoveWallet(ctx context.Context, address string) er
 }
 
 func (wr *WalletRepository) IsEmpty(ctx context.Context) (bool, error) {
-    query := `SELECT COUNT(*) FROM "TransactionSystem".wallets`
+    query := `SELECT COUNT(*) FROM wallets`
     
     var count int
     err := wr.db.QueryRow(ctx, query).Scan(&count)
@@ -117,4 +116,52 @@ func (wr *WalletRepository) IsEmpty(ctx context.Context) (bool, error) {
     }
     
     return count == 0, nil
+}
+
+func (wr *WalletRepository) BatchCreateWallets(
+	ctx context.Context,
+	failOnError bool,
+	wallets  <-chan domain.Wallet,
+	done chan<- string,
+	errChan chan<- error,
+) {
+	tx, err := wr.db.Begin(ctx)
+	if err != nil {
+	    errChan <- err
+	    close(done)
+	    close(errChan)
+	    return
+	}
+
+	query := `INSERT INTO wallets (address, balance) VALUES ($1, $2)`
+
+	for w := range wallets {
+		select {
+		case <-ctx.Done():
+		    tx.Rollback(ctx)
+		    close(done)
+		    close(errChan)
+		    return
+		default:
+		}
+	
+		if _, err := tx.Exec(ctx, query, w.Address, w.Balance); err != nil {
+		    if failOnError {
+			tx.Rollback(ctx)
+			errChan <- fmt.Errorf("insert %s: %w", w.Address, err)
+			close(done)
+			close(errChan)
+			return
+		    }
+		    log.Printf("WARN: insert failed for %s: %v", w.Address, err)
+		    continue
+		}
+		done <- w.Address
+	}
+	
+	if err := tx.Commit(ctx); err != nil {
+		errChan <- fmt.Errorf("commit: %w", err)
+	}
+	close(done)
+	close(errChan)
 }

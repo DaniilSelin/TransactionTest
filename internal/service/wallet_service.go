@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"net/http"
 
-	"TransactionTest/internal/repository"
 	"TransactionTest/internal/domain"
 	"TransactionTest/internal/errors"
+	"TransactionTest/internal/repository"
 	goErrors "errors"
 	
 	"github.com/google/uuid"
 )
 
 type WalletService struct {
-	walletRepo *repository.WalletRepository
+	walletRepo WalletRepositoryInterface
 }
 
-func NewWalletService(walletRepo *repository.WalletRepository) *WalletService {
+func NewWalletService(walletRepo WalletRepositoryInterface) *WalletService {
 	return &WalletService{walletRepo: walletRepo}
 }
 
@@ -89,4 +89,38 @@ func (ws *WalletService) RemoveWallet(ctx context.Context, address string) error
 		return errors.NewCustomError("Failed to remove wallet", http.StatusInternalServerError, err)
 	}
 	return nil
+}
+
+func (ws *WalletService) CreateWalletsForSeeding(
+	ctx context.Context,
+	count int, 
+	balance float64, 
+	failOnError bool,
+) (<-chan string, <-chan error){ // забыл как вернуть канал
+	wallets := make(chan domain.Wallet)
+	done := make(chan string)
+    	errChan := make(chan error, 1)
+	
+	go ws.walletRepo.BatchCreateWallets(
+		ctx,
+		failOnError,
+		wallets,
+		done,
+		errChan,
+	)
+
+	go func() {
+		defer close(wallets)
+		for i := 0; i < count; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				addr := uuid.New().String()
+				wallets <- domain.Wallet{Address: addr, Balance: balance}
+			}
+		}
+	}()
+
+	return done, errChan
 }

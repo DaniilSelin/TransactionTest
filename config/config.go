@@ -23,6 +23,18 @@ type MigrationConfig struct {
 	Dir    string `mapstructure:"directory"`
 }
 
+type WalletsSeedConfig struct {
+	Enabled    bool   `yaml:"Enabled"`
+	FailOnError bool  `yaml:"FailOnError"`
+	Count      int    `yaml:"Count"`
+	Balance    float64    `yaml:"Balance"`
+	MarkerFile string `yaml:"Marker_file"`	
+}
+
+type SeedingConfig struct {
+    Wallets WalletsSeedConfig `yaml:"wallets"`
+}
+
 type ConnConfig struct {
 	Host            string `mapstructure:"Host"`
 	Port            int    `mapstructure:"Port"`
@@ -76,6 +88,7 @@ type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Logger   LoggerConfig   `yaml:"logger"`
 	Migrations MigrationConfig `yaml:"migrations"`
+	Seeding    SeedingConfig
 }
 
 func LoadConfig() (Config, error) {

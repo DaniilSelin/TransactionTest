@@ -1,29 +1,29 @@
 package service
 
 import (
-    "context"
-    "fmt"
-    "time"
-    "net/http"
+	"context"
+	"net/http"
 
-    "TransactionTest/internal/domain"
-    "TransactionTest/internal/repository"
-    "TransactionTest/internal/errors"
-    goErrors "errors"
+	"TransactionTest/internal/domain"
+	"TransactionTest/internal/errors"
+	"TransactionTest/internal/repository"
+	goErrors "errors"
+	
+	_ "github.com/google/uuid"
+	"time"
 )
 
 type TransactionService struct {
-    transactionRepo *repository.TransactionRepository
-    walletRepo      *repository.WalletRepository
+    transactionRepo TransactionRepositoryInterface
+    walletRepo      WalletRepositoryInterface
 }
 
-func NewTransactionService(tr *repository.TransactionRepository, wr *repository.WalletRepository) *TransactionService {
+func NewTransactionService(tr TransactionRepositoryInterface, wr WalletRepositoryInterface) *TransactionService {
     return &TransactionService{
         transactionRepo: tr,
         walletRepo:      wr,
     }
 }
-
 func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, amount float64) error {
     if from == to {
         return errors.NewCustomError("Sender and receiver cannot be the same", http.StatusBadRequest, nil)

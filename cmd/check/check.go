@@ -8,7 +8,10 @@ import (
 	"TransactionTest/config"
 	"TransactionTest/migrations"
 	"TransactionTest/internal/logger"
+	"TransactionTest/internal/repository"
+	"TransactionTest/internal/service"
 	"TransactionTest/internal/storage/postgres"
+	"TransactionTest/internal/storage/postgres/seeder"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -72,5 +75,17 @@ func main() {
 		}
 	} else {
 		appLogger.Info(ctx, "Migrations applied successfully.")
+	}
+
+	transactionRepo := repository.NewTransactionRepository(pool)
+	walletRepo := repository.NewWalletRepository(pool)
+
+	_ = service.NewTransactionService(transactionRepo, walletRepo)
+	walletService := service.NewWalletService(walletRepo)
+
+	// запускаем создание 10 кошельков
+	err = seeder.SeedWallets(ctx, cfg.Seeding.Wallets, walletService.CreateWalletsForSeeding) 
+	if err != nil {
+		appLogger.Fatal(ctx, fmt.Sprintf("FATAL: failed to run seed: %v", err))
 	}
 }

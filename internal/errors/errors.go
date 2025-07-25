@@ -15,4 +15,4 @@ func (e *CustomError) Error() string {
 
 func NewCustomError(message string, code int, err error) *CustomError {
 	return &CustomError{Message: message, Code: code, Err: err}
-} 
+}

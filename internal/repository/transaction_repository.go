@@ -8,18 +8,16 @@ import (
 
     "TransactionTest/internal/domain"
 
-    "github.com/jackc/pgx/v4/pgxpool"
     "github.com/jackc/pgx/v4"
 )
 
 var ErrTransactionNotFound = errors.New("transaction not found")
 
-// Менеджер для транзакций
 type TransactionRepository struct {
-	db *pgxpool.Pool
+	db DBInterface
 }
 
-func NewTransactionRepository(db *pgxpool.Pool) *TransactionRepository {
+func NewTransactionRepository(db DBInterface) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 

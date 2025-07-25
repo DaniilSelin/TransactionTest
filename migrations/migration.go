@@ -14,6 +14,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 )
 
+// Ошибка для обработки в вызывающем коде (main)
 var ErrNoChange = migrate.ErrNoChange
 
 func New(sourceURL, databaseURL string) (*migrate.Migrate, error) {

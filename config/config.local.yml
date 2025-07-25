@@ -22,6 +22,14 @@ migrations:
   driver: "custom-file-sprintf" # кастомный драйвер, подробности в документации
   directory: "./migrations" # папка с миграциями
 
+seeding: # относиться к пункту - при вервом запуске создать 10 кошельков. Подробнее в документации
+  wallets:
+    Enabled: true
+    FailOnError: false # завершать ли работу при ошибки создания кошелька
+    Count: 10
+    Balance: 100
+    MarkerFile: "./.wallets_seeded"
+
 server:
   host: 0.0.0.0
   port: 8080
