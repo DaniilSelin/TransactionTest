@@ -7,7 +7,7 @@ import (
 	"TransactionTest/internal/domain"
 )
 
-type WalletRepositoryInterface interface {
+type IWalletRepository interface {
 	CreateWallet(ctx context.Context, address string, balance float64) error
 	GetWalletBalance(ctx context.Context, address string) (float64, error)
 	GetWallet(ctx context.Context, address string) (*domain.Wallet, error)
@@ -23,7 +23,7 @@ type WalletRepositoryInterface interface {
 	)
 }
 
-type TransactionRepositoryInterface interface {
+type ITransactionRepository interface {
 	CreateTransaction(ctx context.Context, from, to string, amount float64) (int64, error)
 	ExecuteTransfer(ctx context.Context, from, to string, balance_from, balance_to, amount float64) error
 	GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, error)

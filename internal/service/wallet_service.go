@@ -14,10 +14,10 @@ import (
 )
 
 type WalletService struct {
-	walletRepo WalletRepositoryInterface
+	walletRepo IWalletRepository
 }
 
-func NewWalletService(walletRepo WalletRepositoryInterface) *WalletService {
+func NewWalletService(walletRepo IWalletRepository) *WalletService {
 	return &WalletService{walletRepo: walletRepo}
 }
 

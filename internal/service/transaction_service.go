@@ -14,11 +14,11 @@ import (
 )
 
 type TransactionService struct {
-    transactionRepo TransactionRepositoryInterface
-    walletRepo      WalletRepositoryInterface
+    transactionRepo ITransactionRepository
+    walletRepo      IWalletRepository
 }
 
-func NewTransactionService(tr TransactionRepositoryInterface, wr WalletRepositoryInterface) *TransactionService {
+func NewTransactionService(tr ITransactionRepository, wr IWalletRepository) *TransactionService {
     return &TransactionService{
         transactionRepo: tr,
         walletRepo:      wr,

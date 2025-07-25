@@ -14,10 +14,10 @@ import (
 var ErrWalletNotFound = errors.New("wallet not found")
 
 type WalletRepository struct {
-	db DBInterface
+	db IDB
 }
 
-func NewWalletRepository(db DBInterface) *WalletRepository {
+func NewWalletRepository(db IDB) *WalletRepository {
 	return &WalletRepository{db: db}
 }
 

@@ -14,10 +14,10 @@ import (
 var ErrTransactionNotFound = errors.New("transaction not found")
 
 type TransactionRepository struct {
-	db DBInterface
+	db IDB
 }
 
-func NewTransactionRepository(db DBInterface) *TransactionRepository {
+func NewTransactionRepository(db IDB) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
