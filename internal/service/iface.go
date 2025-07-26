@@ -11,9 +11,8 @@ type IWalletRepository interface {
 	CreateWallet(ctx context.Context, address string, balance float64) error
 	GetWalletBalance(ctx context.Context, address string) (float64, error)
 	GetWallet(ctx context.Context, address string) (*domain.Wallet, error)
-	UpdateWalletBalabnce(ctx context.Context, address string, balance float64) error
+	UpdateWalletBalance(ctx context.Context, address string, balance float64) error
 	RemoveWallet(ctx context.Context, address string) error
-	IsEmpty(ctx context.Context) (bool, error)
 	BatchCreateWallets(
 		ctx context.Context,
 		failOnError bool,

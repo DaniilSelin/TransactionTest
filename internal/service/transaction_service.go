@@ -2,28 +2,30 @@ package service
 
 import (
 	"context"
-	"net/http"
+    "errors"
+    "time"
 
 	"TransactionTest/internal/domain"
-	"TransactionTest/internal/errors"
-	"TransactionTest/internal/repository"
-	goErrors "errors"
+	"TransactionTest/internal/logger"
 	
-	_ "github.com/google/uuid"
-	"time"
+    "go.uber.org/zap"
 )
 
 type TransactionService struct {
     transactionRepo ITransactionRepository
     walletRepo      IWalletRepository
+    log logger.Logger
 }
 
-func NewTransactionService(tr ITransactionRepository, wr IWalletRepository) *TransactionService {
+func NewTransactionService(tr ITransactionRepository, wr IWalletRepository, l logger.Logger) *TransactionService {
     return &TransactionService{
         transactionRepo: tr,
         walletRepo:      wr,
+        log: l,
     }
 }
+
+/*
 func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, amount float64) error {
     if from == to {
         return errors.NewCustomError("Sender and receiver cannot be the same", http.StatusBadRequest, nil)
@@ -67,50 +69,67 @@ func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, am
         return errors.NewCustomError("Transaction execution failed", http.StatusInternalServerError, err)
     }
     return nil
-}
+}*/
 
-func (ts *TransactionService) GetLastTransactions(ctx context.Context, limit int) ([]domain.Transaction, error) {
+func (ts *TransactionService) GetLastTransactions(ctx context.Context, limit int) ([]domain.Transaction, domain.ErrorCode) {
     if limit <= 0 {
-        return nil, errors.NewCustomError("Limit must be greater than zero", http.StatusBadRequest, nil)
-    }
+		ts.log.Warn(ctx, "GetLastTransactions: limit must be greater than zero")
+		return nil, domain.CodeInvalidLimit
+	}
 
     transactions, err := ts.transactionRepo.GetLastTransactions(ctx, limit)
     if err != nil {
-        return nil, errors.NewCustomError("Failed to retrieve transactions", http.StatusInternalServerError, err)
+        ts.log.Error(ctx, "GetLastTransactions", zap.Error(err))
+        return nil, domain.CodeInternal
     }
-
-    return transactions, nil
+    ts.log.Info(ctx, "GetTransactionByInfo: success get last transaction", zap.Int("limit", limit))
+    return transactions, domain.CodeOK
 }
 
-func (ts *TransactionService) GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, error) {
+func (ts *TransactionService) GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, domain.ErrorCode) {
     transaction, err := ts.transactionRepo.GetTransactionById(ctx, id)
     if err != nil {
-        if goErrors.Is(err, repository.ErrTransactionNotFound) {
-            return nil, errors.NewCustomError("Transaction not found", http.StatusNotFound, err)
-        }
-        return nil, errors.NewCustomError("Failed to get transaction", http.StatusInternalServerError, err)
+        if errors.Is(err, domain.ErrNotFound) {
+			ts.log.Warn(ctx, "GetTransactionById: transaction not found", zap.Error(err))
+			return nil, domain.CodeTransactionNotFound
+		}
+		ts.log.Error(ctx, "GetTransactionById",  zap.Error(err))
+		return nil, domain.CodeInternal
     }
-    return transaction, nil
+    ts.log.Info(ctx, "GetTransactionByInfo: success get transaction", zap.Int64("id", id))
+    return transaction, domain.CodeOK
 }
 
-func (ts *TransactionService) GetTransactionByInfo(ctx context.Context, from, to string, createdAt time.Time) (*domain.Transaction, error) {
+func (ts *TransactionService) GetTransactionByInfo(ctx context.Context, from, to string, createdAt time.Time) (*domain.Transaction, domain.ErrorCode) {
     transaction, err := ts.transactionRepo.GetTransactionByInfo(ctx, from, to, createdAt)
     if err != nil {
-        if goErrors.Is(err, repository.ErrTransactionNotFound) {
-            return nil, errors.NewCustomError("Transaction not found", http.StatusNotFound, err)
-        }
-        return nil, errors.NewCustomError("Failed to get transaction by info", http.StatusInternalServerError, err)
+        if errors.Is(err, domain.ErrNotFound) {
+			ts.log.Warn(ctx, "GetTransactionByInfo: transaction not found", zap.Error(err))
+			return nil, domain.CodeTransactionNotFound
+		}
+		ts.log.Error(ctx, "GetTransactionByInfo",  zap.Error(err))
+		return nil, domain.CodeInternal
     }
-    return transaction, nil
+    ts.log.Info(
+        ctx, 
+        "GetTransactionByInfo: success get transaction",
+        zap.String("from", from),
+        zap.String("to", to),
+        zap.Time("createdAt", createdAt),
+    )
+    return transaction, domain.CodeOK
 }
 
-func (ts *TransactionService) RemoveTransaction(ctx context.Context, id int64) error {
+func (ts *TransactionService) RemoveTransaction(ctx context.Context, id int64) domain.ErrorCode {
     err := ts.transactionRepo.RemoveTransaction(ctx, id)
     if err != nil {
-        if goErrors.Is(err, repository.ErrTransactionNotFound) {
-            return errors.NewCustomError("Transaction not found", http.StatusNotFound, err)
-        }
-        return errors.NewCustomError("Failed to remove transaction", http.StatusInternalServerError, err)
+        if errors.Is(err, domain.ErrNotFound) {
+			ts.log.Warn(ctx, "RemoveTransaction: transaction not found", zap.Error(err))
+			return domain.CodeTransactionNotFound
+		}
+		ts.log.Error(ctx, "RemoveTransaction",  zap.Error(err))
+		return domain.CodeInternal
     }
-    return nil
+    ts.log.Info(ctx, "RemoveTransaction: success remove transaction", zap.Int64("id", id))
+    return domain.CodeOK
 }

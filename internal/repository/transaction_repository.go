@@ -4,14 +4,9 @@ import (
     "context"
     "fmt"
     "time"
-    "errors"
 
     "TransactionTest/internal/domain"
-
-    "github.com/jackc/pgx/v4"
 )
-
-var ErrTransactionNotFound = errors.New("transaction not found")
 
 type TransactionRepository struct {
 	db IDB
@@ -29,7 +24,18 @@ func (tr *TransactionRepository) CreateTransaction(ctx context.Context, from, to
 
 	err := tr.db.QueryRow(ctx, query, from, to, amount).Scan(&transactionId)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create transaction: %w", err)
+		if dbErr, ok := err.(DBError); ok {
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintAmountPositive {
+				return 0, domain.ErrNegativeAmount
+			}
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintNoSelfTransfer {
+				return 0, domain.ErrSelfTransfer
+			}
+			if dbErr.SQLState() == ErrCodeForeignKeyViolation {
+				return 0, fmt.Errorf("%w: wallet %s or %s", domain.ErrNotFound, from, to)
+			}
+		}
+		return 0, fmt.Errorf("%w: %w", domain.ErrInternal, err)
 	}
 
 	return transactionId, nil
@@ -38,11 +44,10 @@ func (tr *TransactionRepository) CreateTransaction(ctx context.Context, from, to
 func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to string, balance_from, balance_to, amount float64) error {
 	tx, err := tr.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("transaction start failed: %w", err)
+		return fmt.Errorf("%w: transaction start failed: %w", domain.ErrInternal, err)
 	}
 	defer tx.Rollback(ctx)
 
-	// Обновляем балансы кошельков
     updateQuery := `
         UPDATE wallets 
         SET balance = CASE 
@@ -53,10 +58,14 @@ func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to s
 
 	_, err = tx.Exec(ctx, updateQuery, from, to, balance_from, balance_to)
     if err != nil {
+        if dbErr, ok := err.(DBError); ok {
+        	if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintBalanceNonNegative {
+        		return domain.ErrNegativeBalance
+        	}
+        }
         return fmt.Errorf("balance update failed: %w", err)
     }
 
-	// Создаем запись о транзакции
 	_, err = tx.Exec(ctx,
 		`INSERT INTO transactions 
 		(from_wallet, to_wallet, amount) 
@@ -64,12 +73,22 @@ func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to s
 		from, to, amount,
 	)
 	if err != nil {
+		if dbErr, ok := err.(DBError); ok {
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintAmountPositive {
+				return fmt.Errorf("amount must be positive: %w", err)
+			}
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintNoSelfTransfer {
+				return fmt.Errorf("cannot transfer to self: %w", err)
+			}
+			if dbErr.SQLState() == ErrCodeForeignKeyViolation {
+				return fmt.Errorf("wallet not found: %w", err)
+			}
+		}
 		return fmt.Errorf("transaction record failed: %w", err)
 	}
 
 	return tx.Commit(ctx)
 }
-
 
 func (tr *TransactionRepository) GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, error) {
     query := `SELECT id, from_wallet, to_wallet, amount, created_at 
@@ -86,10 +105,10 @@ func (tr *TransactionRepository) GetTransactionById(ctx context.Context, id int6
     )
 
     if err != nil {
-        if err == pgx.ErrNoRows {
-            return nil, ErrTransactionNotFound
+        if dbErr, ok := err.(DBError); ok && dbErr.SQLState() == "no_rows" {
+        	return nil, domain.ErrNotFound
         }
-        return nil, fmt.Errorf("failed to find transaction with id %v: %w", id, err)
+        return nil, fmt.Errorf("%w: failed to find transaction with id %v: %w", domain.ErrInternal, id, err)
     }
 
     return &t, nil
@@ -111,10 +130,10 @@ func (tr *TransactionRepository) GetTransactionByInfo(ctx context.Context, from,
     )
 
     if err != nil {
-        if err == pgx.ErrNoRows {
-            return nil, ErrTransactionNotFound
+        if dbErr, ok := err.(DBError); ok && dbErr.SQLState() == "no_rows" {
+        	return nil, domain.ErrNotFound
         }
-        return nil, fmt.Errorf("transaction not found for from_wallet %v, to_wallet %v at %v: %w", from, to, createdAt, err)
+        return nil, fmt.Errorf("%w: fail than look for transaction for from_wallet %v, to_wallet %v at %v: %w", domain.ErrInternal, from, to, createdAt, err)
     }
 
     return &t, nil
@@ -125,12 +144,12 @@ func (tr *TransactionRepository) RemoveTransaction(ctx context.Context, id int64
 
 	result, err := tr.db.Exec(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete transaction with id %v: %w", id, err)
+		return fmt.Errorf("%w: failed to delete transaction with id %v: %w", domain.ErrInternal, id, err)
 	}
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		return ErrTransactionNotFound
+		return domain.ErrNotFound
 	}
 
 	return nil
@@ -144,7 +163,7 @@ func (tr *TransactionRepository) GetLastTransactions(ctx context.Context, limit 
 
     rows, err := tr.db.Query(ctx, query, limit)
     if err != nil {
-        return nil, fmt.Errorf("failed to get last transactions: %w", err)
+        return nil, fmt.Errorf("%w: failed to get last transactions: %w", domain.ErrInternal, err)
     }
     defer rows.Close()
 
@@ -154,14 +173,14 @@ func (tr *TransactionRepository) GetLastTransactions(ctx context.Context, limit 
         var t domain.Transaction
 
         if err := rows.Scan(&t.Id, &t.From, &t.To, &t.Amount, &t.CreatedAt); err != nil {
-            return nil, fmt.Errorf("failed to scan transaction: %w", err)
+            return nil, fmt.Errorf("%w: failed to scan transaction: %w", domain.ErrInternal, err)
         }
 
         transactions = append(transactions, t)
     }
 
     if err := rows.Err(); err != nil {
-        return nil, fmt.Errorf("error while fetching rows: %w", err)
+        return nil, fmt.Errorf("%w: error while fetching rows: %w", domain.ErrInternal, err)
     }
 
     return transactions, nil

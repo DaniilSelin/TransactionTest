@@ -16,8 +16,9 @@ var (
 )
 
 type CreateWalletsForSeeding func(context.Context, int, float64, bool) (<-chan string, <-chan error) 
+type LogError func(context.Context, error)
 
-func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart CreateWalletsForSeeding) error {
+func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart CreateWalletsForSeeding, log LogError) error {
 	if !cfg.Enabled {
 		return ErrDisabled
 	}
@@ -59,7 +60,10 @@ func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart 
 			if !ok {
 			    return nil // errChan закрыт без ошибки — конец
 			}
-			return fmt.Errorf("seeding failed: %w", err)
+			if cfg.FailOnError {
+				return fmt.Errorf("seeding failed: %w", err)
+			}
+			log(ctx, err)
 		}
 	}
 }

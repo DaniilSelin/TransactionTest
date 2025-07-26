@@ -33,7 +33,7 @@ func (m *MockWalletRepository) GetWallet(ctx context.Context, address string) (*
 	return args.Get(0).(*domain.Wallet), args.Error(1)
 }
 
-func (m *MockWalletRepository) UpdateWalletBalabnce(ctx context.Context, address string, balance float64) error {
+func (m *MockWalletRepository) UpdateWalletBalance(ctx context.Context, address string, balance float64) error {
 	args := m.Called(ctx, address, balance)
 	return args.Error(0)
 }
@@ -56,8 +56,6 @@ func (m *MockWalletRepository) BatchCreateWallets(
 	errChan chan<- error,
 ) {
 	m.Called(ctx, failOnError, wallets, done, errChan)
-	// Логика отправки в каналы и их закрытия нужно
-	// реализовывать в методе Run мока в каждом тесте.
 }
 
 func TestCreateWalletsForSeeding_Success(t *testing.T) {
@@ -276,7 +274,7 @@ func TestCreateWalletsForSeeding_ContextCancellation(t *testing.T) {
 				select {
 				case <-repoCtx.Done():
 					fmt.Println("Мок BatchCreateWallets: Контекст отменен, остановка обработки.")
-					repoErrChan <- repoCtx.Err() // Симулируем ошибку отката для перехвата службой
+					repoErrChan <- repoCtx.Err() // Симулируем ошибку отката для перехвата
 					close(repoDone)
 					close(repoErrChan)
 					return

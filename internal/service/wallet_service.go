@@ -2,93 +2,119 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"net/http"
+	"errors"
 
 	"TransactionTest/internal/domain"
-	"TransactionTest/internal/errors"
-	"TransactionTest/internal/repository"
-	goErrors "errors"
+	"TransactionTest/internal/logger"
 	
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type WalletService struct {
 	walletRepo IWalletRepository
+	log logger.Logger
 }
 
-func NewWalletService(walletRepo IWalletRepository) *WalletService {
-	return &WalletService{walletRepo: walletRepo}
+func NewWalletService(wr IWalletRepository, l logger.Logger) *WalletService {
+	return &WalletService{
+		walletRepo: wr,
+		log: l,
+	}
 }
 
-func (ws *WalletService) CreateWallet(ctx context.Context, balance float64) (string, error) {
+func (ws *WalletService) CreateWallet(ctx context.Context, balance float64) (string, domain.ErrorCode) {
+	if balance < 0 {
+		ws.log.Warn(ctx, "CreateWallet: negative balance not allowed")
+		return "", domain.CodeNegativeBalance
+	}
+
 	address := uuid.New().String()
 
-	if (balance < 0) {
-		return "", errors.NewCustomError("Balance cannot be negative", http.StatusBadRequest, nil)
-	}
-
 	if err := ws.walletRepo.CreateWallet(ctx, address, balance); err != nil {
-		return "", errors.NewCustomError("Failed to create wallet", http.StatusInternalServerError, err)
+		switch {
+		case errors.Is(err, domain.ErrInternal): // Для ускорения проверок
+			ws.log.Error(ctx, "CreateWalett",  zap.Error(err))
+			return "", domain.CodeInternal // 99% ошибок
+		case errors.Is(err, domain.ErrWalletAlreadyExists):
+			ws.log.Warn(ctx, "CreateWalett",  zap.Error(err))
+			return "", domain.CodeDuplicateWallet
+		case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
+			ws.log.Warn(ctx, "CreateWalett",  zap.Error(err))
+			return "", domain.CodeNegativeBalance
+		default:
+			ws.log.Error(ctx, "CreateWalett: unexpected",  zap.Error(err))
+			return "", domain.CodeInternal
+		}
 	}
-
-	return address, nil
+	ws.log.Info(ctx, "CreateWallet: success create wallet", zap.String("address", address))
+	return address, domain.CodeOK
 }
 
-func (ws *WalletService) IsEmpty(ctx context.Context) (bool, error) {
-	isEmpty, err := ws.walletRepo.IsEmpty(ctx)
-	if err != nil {
-		return false, errors.NewCustomError("Failed to check if wallets table is empty", http.StatusInternalServerError, err)
-	}
-	return isEmpty, nil
-}
-
-func (ws *WalletService) GetBalance(ctx context.Context, address string) (float64, error) {
+func (ws *WalletService) GetBalance(ctx context.Context, address string) (float64, domain.ErrorCode) {
 	balance, err := ws.walletRepo.GetWalletBalance(ctx, address)
 	if err != nil {
-		if goErrors.Is(err, repository.ErrWalletNotFound) {
-			return 0, errors.NewCustomError("Wallet not found", http.StatusNotFound, err)
+		if errors.Is(err, domain.ErrNotFound) {
+			ws.log.Warn(ctx, "GetBalance: wallet not found",  zap.Error(err))
+			return 0, domain.CodeWalletNotFound
 		}
-		return 0, errors.NewCustomError(fmt.Sprintf("Failed to get balance for wallet %s", address), http.StatusInternalServerError, err)
+		ws.log.Error(ctx, "GetBalance",  zap.Error(err))
+		return 0, domain.CodeInternal
 	}
-	return balance, nil
+	ws.log.Info(ctx, "GetBalance: success get wallet", zap.String("address", address), zap.Float64("balance", balance))
+	return balance, domain.CodeOK
 }
 
-func (ws *WalletService) GetWallet(ctx context.Context, address string) (*domain.Wallet, error) {
+func (ws *WalletService) GetWallet(ctx context.Context, address string) (*domain.Wallet, domain.ErrorCode) {
 	wallet, err := ws.walletRepo.GetWallet(ctx, address)
 	if err != nil {
-		if goErrors.Is(err, repository.ErrWalletNotFound) {
-			return nil, errors.NewCustomError("Wallet not found", http.StatusNotFound, err)
+		if errors.Is(err, domain.ErrNotFound) {
+			ws.log.Warn(ctx, "GetWallet: wallet not found",  zap.Error(err))
+			return nil, domain.CodeWalletNotFound
 		}
-		return nil, errors.NewCustomError(fmt.Sprintf("Failed to get wallet %s", address), http.StatusInternalServerError, err)
+		ws.log.Error(ctx, "GetBalance",  zap.Error(err))
+		return nil, domain.CodeInternal
 	}
-
-	return wallet, nil
+	ws.log.Info(ctx, "GetWallet: success get wallet",  zap.String("address", address))
+	return wallet, domain.CodeOK
 }
 
-func (ws *WalletService) UpdateBalance(ctx context.Context, address string, newBalance float64) error {
+func (ws *WalletService) UpdateBalance(ctx context.Context, address string, newBalance float64) domain.ErrorCode {
 	if newBalance < 0 {
-		return errors.NewCustomError("Balance cannot be negative", http.StatusBadRequest, nil)
+		ws.log.Warn(ctx, "UpdateBalance: negative balance not allowed")
+		return domain.CodeNegativeBalance
 	}
-	err := ws.walletRepo.UpdateWalletBalabnce(ctx, address, newBalance)
+
+	err := ws.walletRepo.UpdateWalletBalance(ctx, address, newBalance)
 	if err != nil {
-		if goErrors.Is(err, repository.ErrWalletNotFound) {
-			return errors.NewCustomError("Wallet not found", http.StatusNotFound, err)
+			switch {
+			case errors.Is(err, domain.ErrNotFound):
+				ws.log.Warn(ctx, "UpdateBalance: wallet not found",  zap.Error(err))
+				return domain.CodeWalletNotFound
+			case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
+				ws.log.Warn(ctx, "UpdateBalance",  zap.Error(err))
+				return domain.CodeNegativeBalance
+			default:
+				ws.log.Error(ctx, "UpdateBalance",  zap.Error(err))
+				return domain.CodeInternal
 		}
-		return errors.NewCustomError("Failed to update wallet balance", http.StatusInternalServerError, err)
 	}
-	return nil
+	ws.log.Info(ctx, "UpdateBalance: success update wallet", zap.String("address", address), zap.Float64("newBalance", newBalance))
+	return domain.CodeOK
 }
 
-func (ws *WalletService) RemoveWallet(ctx context.Context, address string) error {
+func (ws *WalletService) RemoveWallet(ctx context.Context, address string) domain.ErrorCode {
 	err := ws.walletRepo.RemoveWallet(ctx, address)
 	if err != nil {
-		if goErrors.Is(err, repository.ErrWalletNotFound) {
-			return errors.NewCustomError("Wallet not found", http.StatusNotFound, err)
+		if errors.Is(err, domain.ErrNotFound) {
+			ws.log.Warn(ctx, "RemoveWallet: wallet not found",  zap.Error(err))
+			return domain.CodeWalletNotFound
 		}
-		return errors.NewCustomError("Failed to remove wallet", http.StatusInternalServerError, err)
+		ws.log.Error(ctx, "RemoveWallet",  zap.Error(err))
+		return domain.CodeInternal
 	}
-	return nil
+	ws.log.Info(ctx, "UpdateBalance: success remove wallet", zap.String("address", address))
+	return domain.CodeOK
 }
 
 func (ws *WalletService) CreateWalletsForSeeding(
@@ -96,10 +122,10 @@ func (ws *WalletService) CreateWalletsForSeeding(
 	count int, 
 	balance float64, 
 	failOnError bool,
-) (<-chan string, <-chan error){ // забыл как вернуть канал
+) (<-chan string, <-chan error){
 	wallets := make(chan domain.Wallet)
 	done := make(chan string)
-    	errChan := make(chan error, 1)
+	errChan := make(chan error, 1)
 	
 	go ws.walletRepo.BatchCreateWallets(
 		ctx,

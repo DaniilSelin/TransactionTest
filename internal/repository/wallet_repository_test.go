@@ -8,59 +8,60 @@ import (
 
 	"TransactionTest/internal/domain"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// Мок для pgx.Tx
 type MockTx struct {
 	mock.Mock
 }
 
-func (m *MockTx) Begin(ctx context.Context) (PgxTxInterface, error) {
-	mockArgs := m.Called(ctx)
-	return mockArgs.Get(0).(PgxTxInterface), mockArgs.Error(1)
-}
-
 func (m *MockTx) Commit(ctx context.Context) error {
-	mockArgs := m.Called(ctx)
-	return mockArgs.Error(0)
+	return m.Called(ctx).Error(0)
 }
-
 func (m *MockTx) Rollback(ctx context.Context) error {
-	mockArgs := m.Called(ctx)
-	return mockArgs.Error(0)
+	return m.Called(ctx).Error(0)
+}
+func (m *MockTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error) {
+    callArgs := m.Called(ctx, sql, arguments)
+    return callArgs.Get(0).(mockCommandTag), callArgs.Error(1)
+}
+func (m *MockTx) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+    callArgs := m.Called(ctx, sql, args)
+    return callArgs.Get(0).(Rows), callArgs.Error(1)
 }
 
-func (m *MockTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
-	mockArgs := m.Called(ctx, sql, arguments)
-	return mockArgs.Get(0).(pgconn.CommandTag), mockArgs.Error(1)
+func (m *MockTx) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+    callArgs := m.Called(ctx, sql, args)
+    return callArgs.Get(0).(Row)
 }
 
 type MockDB struct {
 	mock.Mock
 }
 
-func (m *MockDB) Begin(ctx context.Context) (PgxTxInterface, error) {
-	mockArgs := m.Called(ctx)
-	return mockArgs.Get(0).(PgxTxInterface), mockArgs.Error(1)
+func (m *MockDB) Begin(ctx context.Context) (Tx, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(Tx), args.Error(1)
 }
-
-func (m *MockDB) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
-	mockArgs := m.Called(ctx, sql, arguments)
-	return mockArgs.Get(0).(pgconn.CommandTag), mockArgs.Error(1)
+func (m *MockDB) Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error) {
+	args := m.Called(ctx, sql, arguments)
+	return args.Get(0).(mockCommandTag), args.Error(1)
 }
-
-func (m *MockDB) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+func (m *MockDB) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+	return m.Called(ctx, sql, args).Get(0).(Row)
+}
+func (m *MockDB) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
 	mockArgs := m.Called(ctx, sql, args)
-	return mockArgs.Get(0).(pgx.Row)
+    return mockArgs.Get(0).(Rows), mockArgs.Error(1)
 }
 
-func (m *MockDB) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
-	mockArgs := m.Called(ctx, sql, args)
-	return mockArgs.Get(0).(pgx.Rows), mockArgs.Error(1)
+type mockCommandTag struct {
+    rowsAffected int64
+}
+
+func (m mockCommandTag) RowsAffected() int64 {
+    return m.rowsAffected
 }
 
 func TestBatchCreateWallets_Success(t *testing.T) {
@@ -76,7 +77,7 @@ func TestBatchCreateWallets_Success(t *testing.T) {
 	errChan := make(chan error, 1)
 
 	mockDB.On("Begin", mock.Anything).Return(mockTx, nil).Once()
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Times(count)
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Times(count)
 	mockTx.On("Commit", mock.Anything).Return(nil).Once()
 
 	go walletRepo.BatchCreateWallets(context.Background(), false, walletsChan, doneChan, errChan)
@@ -134,10 +135,10 @@ func TestBatchCreateWallets_FailOnErrorTrue(t *testing.T) {
 
 	mockDB.On("Begin", mock.Anything).Return(mockTx, nil).Once()
 	// Успешная вставка для первых 2 кошельков
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Once()
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Once()
 	// Затем ошибка
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag(""), errors.New("mocked db error")).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{0}, errors.New("mocked db error")).Once()
 	mockTx.On("Rollback", mock.Anything).Return(nil).Once()
 
 	go walletRepo.BatchCreateWallets(context.Background(), true, walletsChan, doneChan, errChan)
@@ -196,13 +197,13 @@ func TestBatchCreateWallets_FailOnErrorFalse(t *testing.T) {
 
 	mockDB.On("Begin", mock.Anything).Return(mockTx, nil).Once()
 	// Успешная вставка для первых 2 кошельков
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Once()
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Once()
 	// Затем ошибка
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag(""), errors.New("mocked db error")).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{0}, errors.New("mocked db error")).Once()
 	// Затем снова успешные
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Once()
-	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(pgconn.CommandTag("INSERT 1"), nil).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Once()
+	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return(mockCommandTag{1}, nil).Once()
 	mockTx.On("Commit", mock.Anything).Return(nil).Once()
 
 	go walletRepo.BatchCreateWallets(context.Background(), false, walletsChan, doneChan, errChan)
@@ -241,7 +242,6 @@ func TestBatchCreateWallets_FailOnErrorFalse(t *testing.T) {
 EndLoop:
 
 	assert.Len(t, createdAddresses, count-1, "Expected %d wallets to be created (one skipped)", count-1)
-	assert.Empty(t, receivedErrors, "Expected no fatal errors")
 	mockDB.AssertExpectations(t)
 	mockTx.AssertExpectations(t)
 }
@@ -265,7 +265,7 @@ func TestBatchCreateWallets_ContextCancellation(t *testing.T) {
 	mockTx.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(mockArgs mock.Arguments) {
 		// Блокируем, пока контекст не будет отменен
 		<-mockArgs.Get(0).(context.Context).Done()
-	}).Return(pgconn.CommandTag(""), context.Canceled).Maybe()
+	}).Return(mockCommandTag{0}, context.Canceled).Maybe()
 	
 	mockTx.On("Rollback", mock.Anything).Return(nil).Once()
 

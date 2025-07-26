@@ -53,6 +53,9 @@ func main() {
 	}
 	fmt.Printf("%+v\n", pool)
 
+	// Оборачиваем pool
+	adapter := postgres.NewPoolAdapter(pool)
+
 	log.Println("ПОПЫТКА МИГРАЦИЙ")
 	// Запускаем миграции
 	connStr := cfg.Postgres.Pool.ConnConfig.ConnString()
@@ -77,14 +80,18 @@ func main() {
 		appLogger.Info(ctx, "Migrations applied successfully.")
 	}
 
-	transactionRepo := repository.NewTransactionRepository(pool)
-	walletRepo := repository.NewWalletRepository(pool)
+	transactionRepo := repository.NewTransactionRepository(adapter)
+	walletRepo := repository.NewWalletRepository(adapter)
 
-	_ = service.NewTransactionService(transactionRepo, walletRepo)
-	walletService := service.NewWalletService(walletRepo)
+	_ = service.NewTransactionService(transactionRepo, walletRepo, appLogger)
+	walletService := service.NewWalletService(walletRepo, appLogger)
+
+	seedlog := func(ctx context.Context, err error) {
+		appLogger.Warn(ctx, "Seeding error create wallet", zap.Error(err))
+	}
 
 	// запускаем создание 10 кошельков
-	err = seeder.SeedWallets(ctx, cfg.Seeding.Wallets, walletService.CreateWalletsForSeeding) 
+	err = seeder.SeedWallets(ctx, cfg.Seeding.Wallets, walletService.CreateWalletsForSeeding, seedlog) 
 	if err != nil {
 		appLogger.Fatal(ctx, fmt.Sprintf("FATAL: failed to run seed: %v", err))
 	}

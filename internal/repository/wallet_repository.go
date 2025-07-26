@@ -2,16 +2,10 @@ package repository
 
 import (
     "context"
-	"log"
     "fmt"
-    "errors"
 
     "TransactionTest/internal/domain"
-
-    "github.com/jackc/pgx/v4"
 )
-
-var ErrWalletNotFound = errors.New("wallet not found")
 
 type WalletRepository struct {
 	db IDB
@@ -26,7 +20,15 @@ func (wr *WalletRepository) CreateWallet(ctx context.Context, address string, ba
 
 	_, err := wr.db.Exec(ctx, query, address, balance)
 	if err != nil {
-		return fmt.Errorf("failed to create wallet: %w", err)
+		if dbErr, ok := err.(DBError); ok {
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintBalanceNonNegative {
+				return domain.ErrNegativeBalance
+			}
+			if dbErr.SQLState() == ErrCodeUniqueViolation {
+				return domain.ErrWalletAlreadyExists
+			}
+		}
+		return fmt.Errorf("%w: failed to create wallet: %w", domain.ErrInternal, err)
 	}
 
 	return nil
@@ -36,13 +38,13 @@ func (wr *WalletRepository) GetWalletBalance(ctx context.Context, address string
 	query := `SELECT balance FROM wallets WHERE address = $1`
 
 	var balance float64
-	
+
 	err := wr.db.QueryRow(ctx, query, address).Scan(&balance)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-            return 0, ErrWalletNotFound
+        if dbErr, ok := err.(DBError); ok && dbErr.SQLState() == "no_rows" {
+        	return 0, domain.ErrNotFound
         }
-        return 0, fmt.Errorf("failed to find wallet with address %v: %w", address, err)
+        return 0, fmt.Errorf("%w: failed to find wallet %v: %w",  domain.ErrInternal, address, err)
 	}
 
 	return balance, nil
@@ -56,33 +58,37 @@ func (wr *WalletRepository) GetWallet(ctx context.Context, address string) (*dom
 
     err := wr.db.QueryRow(ctx, query, address).Scan(
     	&w.Address,
-	    &w.Balance, 
+    	&w.Balance, 
 		&w.CreatedAt,
     )
 
     if err != nil {
-        if err == pgx.ErrNoRows {
-            return nil, ErrWalletNotFound
+        if dbErr, ok := err.(DBError); ok && dbErr.SQLState() == "no_rows" {
+        	return nil, domain.ErrNotFound
         }
-        return nil, fmt.Errorf("failed to find wallet with address %v: %w", address, err)
+        return nil, fmt.Errorf("%w: failed to find wallet %v: %w", domain.ErrInternal, address, err)
     }
 
     return &w, nil
 }
 
-func (wr *WalletRepository) UpdateWalletBalabnce(ctx context.Context, address string, balance float64) error {
+func (wr *WalletRepository) UpdateWalletBalance(ctx context.Context, address string, balance float64) error {
 	query := `UPDATE wallets SET balance = $1 WHERE address = $2`
 
 	result, err := wr.db.Exec(ctx, query, balance, address)
     if err != nil {
-        return fmt.Errorf("failed to update wallet with address %v: %w", address, err)
+        if dbErr, ok := err.(DBError); ok {
+        	if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintBalanceNonNegative {
+        		return domain.ErrNegativeBalance
+        	}
+        }
+        return fmt.Errorf("%w: failed to update wallet %v: %w", domain.ErrInternal, address, err)
     }
 
-	// Проверяем, были ли затронуты строки
 	rowsAffected := result.RowsAffected()
 
 	if rowsAffected == 0 {
-		return ErrWalletNotFound
+		return domain.ErrNotFound
 	}
 
 	return nil
@@ -93,29 +99,16 @@ func (wr *WalletRepository) RemoveWallet(ctx context.Context, address string) er
 
 	result, err := wr.db.Exec(ctx, query, address)
 	if err != nil {
-		return fmt.Errorf("failed to delete wallet with address %v: %w", address, err)
+		return fmt.Errorf("%w: failed to delete wallet %v: %w", domain.ErrInternal, address, err)
 	}
 
-	//  проверяем, были ли затронуты строки
 	rowsAffected := result.RowsAffected()
 
 	if rowsAffected == 0 {
-		return ErrWalletNotFound
+		return domain.ErrNotFound
 	}
 
 	return nil
-}
-
-func (wr *WalletRepository) IsEmpty(ctx context.Context) (bool, error) {
-    query := `SELECT COUNT(*) FROM wallets`
-    
-    var count int
-    err := wr.db.QueryRow(ctx, query).Scan(&count)
-    if err != nil {
-        return false, fmt.Errorf("failed to check wallets: %w", err)
-    }
-    
-    return count == 0, nil
 }
 
 func (wr *WalletRepository) BatchCreateWallets(
@@ -147,13 +140,13 @@ func (wr *WalletRepository) BatchCreateWallets(
 	
 		if _, err := tx.Exec(ctx, query, w.Address, w.Balance); err != nil {
 		    if failOnError {
-			tx.Rollback(ctx)
-			errChan <- fmt.Errorf("insert %s: %w", w.Address, err)
-			close(done)
-			close(errChan)
-			return
+				tx.Rollback(ctx)
+				errChan <- fmt.Errorf("insert %s: %w", w.Address, err)
+				close(done)
+				close(errChan)
+				return
 		    }
-		    log.Printf("WARN: insert failed for %s: %v", w.Address, err)
+		    errChan <- fmt.Errorf("WARN: insert failed for %s: %v", w.Address, err)
 		    continue
 		}
 		done <- w.Address
