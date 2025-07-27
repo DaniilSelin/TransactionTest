@@ -17,7 +17,7 @@ type ValidationError struct {
 	Message string `json:"message"`
 }
 
-// ValidateStructWithError валидирует структуру и возвращает читаемую ошибку
+// ValidateStruct валидирует структуру и возвращает читаемую ошибку
 func ValidateStruct(s interface{}) error {
 	err := validate.Struct(s)
 	if err == nil {
