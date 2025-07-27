@@ -8,6 +8,8 @@ import (
 )
 
 type IWalletRepository interface {
+	BeginTX(ctx context.Context) (domain.TxExecutor, error)
+	CreateWalletTx(ctx context.Context, tx domain.TxExecutor, address string, balance float64) error
 	CreateWallet(ctx context.Context, address string, balance float64) error
 	GetWalletBalance(ctx context.Context, address string) (float64, error)
 	GetWallet(ctx context.Context, address string) (*domain.Wallet, error)
@@ -23,6 +25,8 @@ type IWalletRepository interface {
 }
 
 type ITransactionRepository interface {
+	BeginTX(ctx context.Context) (domain.TxExecutor, error)
+	CreateTransaction(ctx context.Context, tx domain.TxExecutor, from, to string, amount float64) (int64, error)
 	CreateTransaction(ctx context.Context, from, to string, amount float64) (int64, error)
 	ExecuteTransfer(ctx context.Context, from, to string, balance_from, balance_to, amount float64) error
 	GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, error)

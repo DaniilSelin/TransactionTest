@@ -15,6 +15,14 @@ func NewWalletRepository(db IDB) *WalletRepository {
 	return &WalletRepository{db: db}
 }
 
+func (tr *WalletRepository) BeginTX(ctx) (ITx, error) {
+    tx, err := tr.db.Begin(ctx)
+    if err != nil {
+        return nil, fmt.Errorf("begin transaction: %w", err)
+    }
+    return &txAdapter{tx: tx}, nil
+}
+
 func (wr *WalletRepository) CreateWallet(ctx context.Context, address string, balance float64) error {
 	query := `INSERT INTO wallets (address, balance) VALUES ($1, $2)`
 
@@ -111,50 +119,37 @@ func (wr *WalletRepository) RemoveWallet(ctx context.Context, address string) er
 	return nil
 }
 
-func (wr *WalletRepository) BatchCreateWallets(
-	ctx context.Context,
-	failOnError bool,
-	wallets  <-chan domain.Wallet,
-	done chan<- string,
-	errChan chan<- error,
-) {
-	tx, err := wr.db.Begin(ctx)
-	if err != nil {
-	    errChan <- err
-	    close(done)
-	    close(errChan)
-	    return
-	}
-
+func (wr *WalletRepository) CreateWalletTx(ctx context.Context, tx ITx, address string, balance float64) error {
 	query := `INSERT INTO wallets (address, balance) VALUES ($1, $2)`
+	_, err := tx.Exec(ctx, query, address, balance)
+	if err != nil {
+		if dbErr, ok := err.(DBError); ok {
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintBalanceNonNegative {
+				return domain.ErrNegativeBalance
+			}
+			if dbErr.SQLState() == ErrCodeUniqueViolation {
+				return domain.ErrWalletAlreadyExists
+			}
+		}
+		return fmt.Errorf("%w: failed to create wallet: %w", domain.ErrInternal, err)
+	}
+	return nil
+}
 
-	for w := range wallets {
-		select {
-		case <-ctx.Done():
-		    tx.Rollback(ctx)
-		    close(done)
-		    close(errChan)
-		    return
-		default:
+func (wr *WalletRepository) UpdateWalletBalanceTx(ctx context.Context, tx txAdapter, address string, balance float64) error {
+	query := `UPDATE wallets SET balance = $1 WHERE address = $2`
+	result, err := tx.Exec(ctx, query, balance, address)
+	if err != nil {
+		if dbErr, ok := err.(DBError); ok {
+			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintBalanceNonNegative {
+				return domain.ErrNegativeBalance
+			}
 		}
-	
-		if _, err := tx.Exec(ctx, query, w.Address, w.Balance); err != nil {
-		    if failOnError {
-				tx.Rollback(ctx)
-				errChan <- fmt.Errorf("insert %s: %w", w.Address, err)
-				close(done)
-				close(errChan)
-				return
-		    }
-		    errChan <- fmt.Errorf("WARN: insert failed for %s: %v", w.Address, err)
-		    continue
-		}
-		done <- w.Address
+		return fmt.Errorf("%w: failed to update wallet %v: %w", domain.ErrInternal, address, err)
 	}
-	
-	if err := tx.Commit(ctx); err != nil {
-		errChan <- fmt.Errorf("commit: %w", err)
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return domain.ErrNotFound
 	}
-	close(done)
-	close(errChan)
+	return nil
 }

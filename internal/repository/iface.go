@@ -5,13 +5,13 @@ import (
 )
 
 type IDB interface {
-	Begin(ctx context.Context) (Tx, error)
+	Begin(ctx context.Context) (ITx, error)
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) Row
 	Query(ctx context.Context, sql string, args ...interface{}) (Rows, error)
 }
 
-type Tx interface {
+type ITx interface {
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)

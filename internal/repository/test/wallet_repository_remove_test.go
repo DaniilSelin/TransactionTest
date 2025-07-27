@@ -1,0 +1,46 @@
+package test
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"TransactionTest/internal/repository"
+	"TransactionTest/internal/domain"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestWalletRepository_RemoveWallet_Success(t *testing.T) {
+	ctx := context.Background()
+	mockDB := &MockDB{
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 1 }}, nil
+		},
+	}
+	repo := repository.NewWalletRepository(mockDB)
+	err := repo.RemoveWallet(ctx, "addr")
+	assert.NoError(t, err)
+}
+
+func TestWalletRepository_RemoveWallet_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mockDB := &MockDB{
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 0 }}, nil
+		},
+	}
+	repo := repository.NewWalletRepository(mockDB)
+	err := repo.RemoveWallet(ctx, "addr")
+	assert.True(t, errors.Is(err, domain.ErrNotFound))
+}
+
+func TestWalletRepository_RemoveWallet_InternalError(t *testing.T) {
+	ctx := context.Background()
+	mockDB := &MockDB{
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+			return nil, errors.New("fail")
+		},
+	}
+	repo := repository.NewWalletRepository(mockDB)
+	err := repo.RemoveWallet(ctx, "addr")
+	assert.True(t, errors.Is(err, domain.ErrInternal))
+} 

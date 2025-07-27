@@ -25,51 +25,80 @@ func NewTransactionService(tr ITransactionRepository, wr IWalletRepository, l lo
     }
 }
 
-/*
-func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, amount float64) error {
-    if from == to {
-        return errors.NewCustomError("Sender and receiver cannot be the same", http.StatusBadRequest, nil)
-    }
-    if amount <= 0 {
-        return errors.NewCustomError("Amount must be greater than zero", http.StatusBadRequest, nil)
-    }
+func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, amount float64) domain.ErrorCode {
+	if from == to {
+		ts.log.Warn(ctx, "SendMoney: self transfer not allowed")
+		return domain.CodeInvalidTransaction
+	}
+	if amount <= 0 {
+		ts.log.Warn(ctx, "SendMoney: amount must be positive")
+		return domain.CodeNegativeAmount
+	}
 
-    fromBalance, err := ts.walletRepo.GetWalletBalance(ctx, from)
-    if err != nil {
-        if goErrors.Is(err, repository.ErrWalletNotFound) {
-            return errors.NewCustomError("Sender wallet not found", http.StatusNotFound, err)
-        }
-        return errors.NewCustomError("Failed to get sender balance", http.StatusInternalServerError, err)
-    }
-    if fromBalance < amount {
-        return errors.NewCustomError("Insufficient funds", http.StatusBadRequest, nil)
-    }
+	fromBalance, err := ts.walletRepo.GetWalletBalance(ctx, from)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			ts.log.Warn(ctx, "SendMoney: sender wallet not found", zap.Error(err))
+			return domain.CodeWalletNotFound
+		}
+		ts.log.Error(ctx, "SendMoney: failed to get sender balance", zap.Error(err))
+		return domain.CodeInternal
+	}
+	if fromBalance < amount {
+		ts.log.Warn(ctx, "SendMoney: insufficient funds", zap.Float64("balance", fromBalance), zap.Float64("amount", amount))
+		return domain.CodeInsufficientFunds
+	}
 
-    toBalance, err := ts.walletRepo.GetWalletBalance(ctx, to)
-    if err != nil {
-        if goErrors.Is(err, repository.ErrWalletNotFound) {
-            return errors.NewCustomError("Receiver wallet not found", http.StatusNotFound, err)
-        }
-        return errors.NewCustomError("Failed to get receiver balance", http.StatusInternalServerError, err)
-    }
+	toBalance, err := ts.walletRepo.GetWalletBalance(ctx, to)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			ts.log.Warn(ctx, "SendMoney: receiver wallet not found", zap.Error(err))
+			return domain.CodeWalletNotFound
+		}
+		ts.log.Error(ctx, "SendMoney: failed to get receiver balance", zap.Error(err))
+		return domain.CodeInternal
+	}
 
-    newFromBalance := fromBalance - amount
-    newToBalance := toBalance + amount
+	newFromBalance := fromBalance - amount
+	newToBalance := toBalance + amount
 
-    // проиводим транзакцию
-    err = ts.transactionRepo.ExecuteTransfer(
-        ctx,
-        from,
-        to,
-        newFromBalance,
-        newToBalance,
-        amount,
-    )
-    if err != nil {
-        return errors.NewCustomError("Transaction execution failed", http.StatusInternalServerError, err)
-    }
-    return nil
-}*/
+	tx, err := ts.transactionRepo.BeginTX(ctx)
+	if err != nil {
+		ts.log.Error(ctx, "SendMoney: failed to begin transaction", zap.Error(err))
+		return domain.CodeInternal
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		}
+	}()
+
+	err = ts.walletRepo.UpdateWalletBalanceTx(ctx, tx, from, newFromBalance)
+	if err != nil {
+		ts.log.Error(ctx, "SendMoney: failed to update sender balance", zap.Error(err))
+		return domain.CodeInternal
+	}
+	err = ts.walletRepo.UpdateWalletBalanceTx(ctx, tx, to, newToBalance)
+	if err != nil {
+		ts.log.Error(ctx, "SendMoney: failed to update receiver balance", zap.Error(err))
+		return domain.CodeInternal
+	}
+	_, err = ts.transactionRepo.CreateTransactionTx(ctx, tx, from, to, amount)
+	if err != nil {
+		ts.log.Error(ctx, "SendMoney: failed to create transaction record", zap.Error(err))
+		return domain.CodeInternal
+	}
+	if err = tx.Commit(ctx); err != nil {
+		ts.log.Error(ctx, "SendMoney: failed to commit transaction", zap.Error(err))
+		return domain.CodeInternal
+	}
+
+	ts.log.Info(ctx, "SendMoney: transaction completed successfully", 
+		zap.String("from", from), 
+		zap.String("to", to), 
+		zap.Float64("amount", amount))
+	return domain.CodeOK
+}
 
 func (ts *TransactionService) GetLastTransactions(ctx context.Context, limit int) ([]domain.Transaction, domain.ErrorCode) {
     if limit <= 0 {

@@ -16,6 +16,14 @@ func NewTransactionRepository(db IDB) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
+func (tr *TransactionRepository) BeginTX(ctx) (domain.TxExecutor, error) {
+    tx, err := tr.db.Begin(ctx)
+    if err != nil {
+        return nil, fmt.Errorf("begin transaction: %w", err)
+    }
+    return &txAdapter{tx: tx}, nil
+}
+
 func (tr *TransactionRepository) CreateTransaction(ctx context.Context, from, to string, amount float64) (int64, error) {
 	query := `INSERT INTO transactions (from_wallet, to_wallet, amount) 
               VALUES ($1, $2, $3) RETURNING id`
@@ -41,53 +49,25 @@ func (tr *TransactionRepository) CreateTransaction(ctx context.Context, from, to
 	return transactionId, nil
 }
 
-func (tr *TransactionRepository) ExecuteTransfer(ctx context.Context, from, to string, balance_from, balance_to, amount float64) error {
-	tx, err := tr.db.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("%w: transaction start failed: %w", domain.ErrInternal, err)
-	}
-	defer tx.Rollback(ctx)
-
-    updateQuery := `
-        UPDATE wallets 
-        SET balance = CASE 
-            WHEN address = $1 THEN CAST($3 AS numeric)
-            WHEN address = $2 THEN CAST($4 AS numeric) 
-        END 
-        WHERE address IN ($1, $2)`
-
-	_, err = tx.Exec(ctx, updateQuery, from, to, balance_from, balance_to)
-    if err != nil {
-        if dbErr, ok := err.(DBError); ok {
-        	if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintBalanceNonNegative {
-        		return domain.ErrNegativeBalance
-        	}
-        }
-        return fmt.Errorf("balance update failed: %w", err)
-    }
-
-	_, err = tx.Exec(ctx,
-		`INSERT INTO transactions 
-		(from_wallet, to_wallet, amount) 
-		VALUES ($1, $2, $3)`,
-		from, to, amount,
-	)
+func (tr *TransactionRepository) CreateTransactionTx(ctx context.Context, tx txAdapter, from, to string, amount float64) (int64, error) {
+	query := `INSERT INTO transactions (from_wallet, to_wallet, amount) VALUES ($1, $2, $3) RETURNING id`
+	var transactionId int64
+	err := tx.QueryRow(ctx, query, from, to, amount).Scan(&transactionId)
 	if err != nil {
 		if dbErr, ok := err.(DBError); ok {
 			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintAmountPositive {
-				return fmt.Errorf("amount must be positive: %w", err)
+				return 0, domain.ErrNegativeAmount
 			}
 			if dbErr.SQLState() == ErrCodeCheckViolation && dbErr.ConstraintName() == ConstraintNoSelfTransfer {
-				return fmt.Errorf("cannot transfer to self: %w", err)
+				return 0, domain.ErrSelfTransfer
 			}
 			if dbErr.SQLState() == ErrCodeForeignKeyViolation {
-				return fmt.Errorf("wallet not found: %w", err)
+				return 0, fmt.Errorf("%w: wallet %s or %s", domain.ErrNotFound, from, to)
 			}
 		}
-		return fmt.Errorf("transaction record failed: %w", err)
+		return 0, fmt.Errorf("%w: %w", domain.ErrInternal, err)
 	}
-
-	return tx.Commit(ctx)
+	return transactionId, nil
 }
 
 func (tr *TransactionRepository) GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, error) {

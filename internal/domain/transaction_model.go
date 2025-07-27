@@ -5,9 +5,9 @@ import (
 )
 
 type Transaction struct {
-	Id       int64    `json:"id"`
-	From      string   `json:"from"`
-	To        string   `json:"to"`  
-	Amount    float64   `json:"amount"`
-	CreatedAt time.Time `json:"created_at"`
+	Id       int64
+	From      string
+	To        string
+	Amount    float64
+	CreatedAt time.Time
 }

@@ -25,6 +25,7 @@ var (
     ErrNegativeAmount      = errors.New("amount must be positive")
     ErrInvalidTransaction  = errors.New("invalid transaction")
     ErrTransactionConflict = errors.New("transaction conflict")
+    ErrSelfTransfer        = errors.New("cannot transfer to self")
 )
 
 // коды ошибок слоя бизнесс логики
@@ -39,4 +40,6 @@ const (
     CodeInternal           ErrorCode = "INTERNAL_ERROR"
     CodeInvalidLimit          ErrorCode = "INVALID_LIMIT"
     CodeTransactionNotFound   ErrorCode = "TRANSACTION_NOT_FOUND"
+    CodeNegativeAmount        ErrorCode = "NEGATIVE_AMOUNT"
+    CodeInvalidTransaction    ErrorCode = "INVALID_TRANSACTION"
 )

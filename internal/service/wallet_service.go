@@ -122,18 +122,17 @@ func (ws *WalletService) CreateWalletsForSeeding(
 	count int, 
 	balance float64, 
 	failOnError bool,
-) (<-chan string, <-chan error){
-	wallets := make(chan domain.Wallet)
+) (<-chan string, <-chan error, bool){
 	done := make(chan string)
 	errChan := make(chan error, 1)
-	
-	go ws.walletRepo.BatchCreateWallets(
-		ctx,
-		failOnError,
-		wallets,
-		done,
-		errChan,
-	)
+
+	tx, err :=  ws.walletRepo.Begin(ctx)
+	if err != nil {
+		ws.log.Error(ctx, "CreateWalletsForSeeding: failed start tx",  zap.Error(err))
+		close(done)
+		close(errChan)
+		return done, errChan, false
+	}
 
 	go func() {
 		defer close(wallets)
@@ -143,9 +142,45 @@ func (ws *WalletService) CreateWalletsForSeeding(
 				return
 			default:
 				addr := uuid.New().String()
-				wallets <- domain.Wallet{Address: addr, Balance: balance}
+				domain.Wallet{Address: addr, Balance: balance}
+				if err := ws.walletRepo.CreateWallet(ctx, tx, addr, balance); err != nil {
+					switch {
+					case errors.Is(err, domain.ErrInternal): // Для ускорения проверок
+						ws.log.Error(ctx, "CreateWalletsForSeeding",  zap.Error(err))
+						if failOnError {
+							tx.Rollback(ctx)
+							return
+						}
+						continue
+					case errors.Is(err, domain.ErrWalletAlreadyExists):
+						ws.log.Warn(ctx, "CreateWalletsForSeeding",  zap.Error(err))
+						if failOnError {
+							tx.Rollback(ctx)
+							return
+						}
+						continue
+					case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
+						ws.log.Warn(ctx, "CreateWalletsForSeeding",  zap.Error(err))
+						if failOnError {
+							tx.Rollback(ctx)
+							return
+						}
+						continue
+					default:
+						ws.log.Error(ctx, "CreateWalletsForSeeding: unexpected",  zap.Error(err))
+						if failOnError {
+							tx.Rollback(ctx)
+							return
+						}
+						continue
+					}
+				}
 			}
 		}
+		if batchErr = tx.Commit(ctx); batchErr != nil {
+			errChan <- batchErr
+		}
+		close(done, errChan)
 	}()
 
 	return done, errChan
