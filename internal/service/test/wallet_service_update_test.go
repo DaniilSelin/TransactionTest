@@ -1,11 +1,11 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
 	"context"
 	"errors"
-	"testing"
-	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestWalletService_UpdateBalance_Negative(t *testing.T) {
@@ -45,4 +45,4 @@ func TestWalletService_UpdateBalance_Success(t *testing.T) {
 	ws := newWS(repo)
 	code := ws.UpdateBalance(context.Background(), "addr", 100)
 	assert.Equal(t, domain.CodeOK, code)
-} 
+}

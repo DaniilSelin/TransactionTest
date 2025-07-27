@@ -1,11 +1,11 @@
 package test
 
 import (
-	"context"
-	"testing"
-	"errors"
 	"TransactionTest/internal/domain"
+	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestTransactionService_RemoveTransaction_NotFound(t *testing.T) {

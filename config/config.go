@@ -1,12 +1,12 @@
 package config
 
 import (
-	"os"
-	"log"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
-    	"github.com/mitchellh/mapstructure"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -14,8 +14,11 @@ import (
 var ConfigFilePath = "config/config.local.yml"
 
 type ServerConfig struct {
-	Host string `mapstructure:"host"` 
-	Port int    `mapstructure:"port"` 
+	Host         string        `mapstructure:"host"`
+	Port         int           `mapstructure:"port"`
+	ReadTimeout  time.Duration `mapstructure:"ReadTimeout"`
+	WriteTimeout time.Duration `mapstructure:"WriteTimeout"`
+	IdleTimeout  time.Duration `mapstructure:"IdleTimeout"`
 }
 
 type MigrationConfig struct {
@@ -24,55 +27,55 @@ type MigrationConfig struct {
 }
 
 type WalletsSeedConfig struct {
-	Enabled    bool   `yaml:"Enabled"`
-	FailOnError bool  `yaml:"FailOnError"`
-	Count      int    `yaml:"Count"`
-	Balance    float64    `yaml:"Balance"`
-	MarkerFile string `yaml:"Marker_file"`	
+	Enabled     bool    `yaml:"Enabled"`
+	FailOnError bool    `yaml:"FailOnError"`
+	Count       int     `yaml:"Count"`
+	Balance     float64 `yaml:"Balance"`
+	MarkerFile  string  `yaml:"Marker_file"`
 }
 
 type SeedingConfig struct {
-    Wallets WalletsSeedConfig `yaml:"wallets"`
+	Wallets WalletsSeedConfig `yaml:"wallets"`
 }
 
 type ConnConfig struct {
-	Host            string `mapstructure:"Host"`
-	Port            int    `mapstructure:"Port"`
-	Database        string `mapstructure:"Database"`
-	User            string `mapstructure:"User"`
-	Password        string `mapstructure:"Password"`
-	SSLMode         string `mapstructure:"SSLMode"`
-	ConnectTimeout  int `mapstructure:"ConnectTimeout"`
+	Host           string `mapstructure:"Host"`
+	Port           int    `mapstructure:"Port"`
+	Database       string `mapstructure:"Database"`
+	User           string `mapstructure:"User"`
+	Password       string `mapstructure:"Password"`
+	SSLMode        string `mapstructure:"SSLMode"`
+	ConnectTimeout int    `mapstructure:"ConnectTimeout"`
 }
 
 func (c *ConnConfig) ConnString() string {
-    return fmt.Sprintf(
-        "postgres://%s:%s@%s:%d/%s?sslmode=%s&connect_timeout=%d",
-        c.User,
-        c.Password,
-        c.Host,
-        c.Port,
-        c.Database,
-        c.SSLMode,
-        c.ConnectTimeout,
-    )
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s&connect_timeout=%d",
+		c.User,
+		c.Password,
+		c.Host,
+		c.Port,
+		c.Database,
+		c.SSLMode,
+		c.ConnectTimeout,
+	)
 }
 
 type PostgresPoolConfig struct {
-	ConnConfig            ConnConfig `mapstructure:"ConnConfig"`
+	ConnConfig            ConnConfig    `mapstructure:"ConnConfig"`
 	MaxConnLifetime       time.Duration `mapstructure:"MaxConnLifetime"`
 	MaxConnLifetimeJitter time.Duration `mapstructure:"MaxConnLifetimeJitter"`
-	MaxConnIdleTime time.Duration `mapstructure:"MaxConnIdleTime"`
-	MaxConns int32 `mapstructure:"MaxConns"`
-	MinConns int32 `mapstructure:"MinConns"`
-	HealthCheckPeriod time.Duration `mapstructure:"HealthCheckPeriod"`
+	MaxConnIdleTime       time.Duration `mapstructure:"MaxConnIdleTime"`
+	MaxConns              int32         `mapstructure:"MaxConns"`
+	MinConns              int32         `mapstructure:"MinConns"`
+	HealthCheckPeriod     time.Duration `mapstructure:"HealthCheckPeriod"`
 }
 
 type PostgresConfig struct {
-	Pool PostgresPoolConfig `mapstructure:"pool"`
-	ConnectRetries int `mapstructure:"ConnectRetries"` 
-	ConnectRetryDelay time.Duration `mapstructure:"ConnectRetryDelay"` 
-	Schema string `mapstructure:"Schema"`
+	Pool              PostgresPoolConfig `mapstructure:"pool"`
+	ConnectRetries    int                `mapstructure:"ConnectRetries"`
+	ConnectRetryDelay time.Duration      `mapstructure:"ConnectRetryDelay"`
+	Schema            string             `mapstructure:"Schema"`
 }
 
 type LoggerConfig struct {
@@ -84,44 +87,44 @@ func (l *LoggerConfig) Build() (*zap.Logger, error) {
 }
 
 type Config struct {
-	Postgres PostgresConfig `yaml:"postgres"`
-	Server   ServerConfig   `yaml:"server"`
-	Logger   LoggerConfig   `yaml:"logger"`
+	Postgres   PostgresConfig  `yaml:"postgres"`
+	Server     ServerConfig    `yaml:"server"`
+	Logger     LoggerConfig    `yaml:"logger"`
 	Migrations MigrationConfig `yaml:"migrations"`
 	Seeding    SeedingConfig
 }
 
 func LoadConfig() (Config, error) {
 	if cfgFile := os.Getenv("CONFIG_FILE_PATH"); cfgFile != "" {
-	    viper.SetConfigFile(cfgFile)
+		viper.SetConfigFile(cfgFile)
 	} else {
-	    viper.SetConfigFile(ConfigFilePath)
+		viper.SetConfigFile(ConfigFilePath)
 		log.Println("WARN:failed to read CONFIG_FILE_PATH, using default path")
 	}
 
 	if err := viper.ReadInConfig(); err != nil {
-	    return Config{}, fmt.Errorf("FATAL: error reading config file: %w", err)
+		return Config{}, fmt.Errorf("FATAL: error reading config file: %w", err)
 	}
 
 	var cfg Config
 
 	decoderConfig := &mapstructure.DecoderConfig{
-        DecodeHook: mapstructure.ComposeDecodeHookFunc(
-            mapstructure.StringToTimeDurationHookFunc(), // чтобы мапить durations
-            zapLevelHook,                                // хук для AtomicLevel
-        ),
-        Result:  &cfg,
-        TagName: "mapstructure",
-    }
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(), // чтобы мапить durations
+			zapLevelHook, // хук для AtomicLevel
+		),
+		Result:  &cfg,
+		TagName: "mapstructure",
+	}
 
-    dec, err := mapstructure.NewDecoder(decoderConfig)
-    if err != nil {
-        return Config{}, fmt.Errorf("FATAL:unable to create new decoder: %w", err)
-    }
+	dec, err := mapstructure.NewDecoder(decoderConfig)
+	if err != nil {
+		return Config{}, fmt.Errorf("FATAL:unable to create new decoder: %w", err)
+	}
 
-    if err := dec.Decode(viper.AllSettings()); err != nil {
-        return Config{}, fmt.Errorf("FATAL:unable to decode into struct: %w", err)
-    }
+	if err := dec.Decode(viper.AllSettings()); err != nil {
+		return Config{}, fmt.Errorf("FATAL:unable to decode into struct: %w", err)
+	}
 
 	return cfg, nil
 }

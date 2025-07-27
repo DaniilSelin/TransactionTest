@@ -2,11 +2,9 @@ package validator
 
 import (
 	"fmt"
-	"time"
 	"reflect"
 	"strings"
-
-	"TransactionTest/internal/delivery/dto"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -19,41 +17,24 @@ type ValidationError struct {
 	Message string `json:"message"`
 }
 
-// ValidationResult содержит результат валидации
-type ValidationResult struct {
-	IsValid bool            `json:"is_valid"`
-	Errors  []ValidationError `json:"errors,omitempty"`
-}
-
-// ValidateStruct валидирует структуру и возвращает ошибку
+// ValidateStructWithError валидирует структуру и возвращает читаемую ошибку
 func ValidateStruct(s interface{}) error {
-	return validate.Struct(s)
-}
-
-// ValidateStructWithDetails валидирует структуру и возвращает детальный результат
-func ValidateStructWithDetails(s interface{}) ValidationResult {
 	err := validate.Struct(s)
 	if err == nil {
-		return ValidationResult{IsValid: true}
+		return nil
 	}
 
-	var errors []ValidationError
-	for _, err := range err.(validator.ValidationErrors) {
-		field := err.Field()
-		tag := err.Tag()
-		param := err.Param()
+	var messages []string
+	for _, validationErr := range err.(validator.ValidationErrors) {
+		field := validationErr.Field()
+		tag := validationErr.Tag()
+		param := validationErr.Param()
 
 		message := getValidationMessage(field, tag, param)
-		errors = append(errors, ValidationError{
-			Field:   strings.ToLower(field),
-			Message: message,
-		})
+		messages = append(messages, message)
 	}
 
-	return ValidationResult{
-		IsValid: false,
-		Errors:  errors,
-	}
+	return fmt.Errorf("validation failed: %s", strings.Join(messages, "; "))
 }
 
 // getValidationMessage возвращает человекочитаемое сообщение об ошибке
@@ -120,59 +101,42 @@ func ValidateWalletAddress(address string) error {
 }
 
 func ValidateSendMoneyRequest(req interface{}) error {
-	// Валидируем структуру
 	if err := ValidateStruct(req); err != nil {
 		return err
 	}
 
-	// Получаем значения полей через reflection для дополнительных проверок
-	v := reflect.ValueOf(req)
-	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
-		return fmt.Errorf("invalid type: expected struct, got %s", v.Kind())
-	}
+	v := reflect.ValueOf(req).Elem()
+	from := v.FieldByName("From").String()
+	to := v.FieldByName("To").String()
 
-	fromField := v.FieldByName("From")
-	toField := v.FieldByName("To")
-	amountField := v.FieldByName("Amount")
-
-	if fromField.IsValid() && toField.IsValid() {
-		from := fromField.String()
-		to := toField.String()
-
-		if from == to {
-			return fmt.Errorf("cannot send money to the same address")
-		}
-	}
-
-	if amountField.IsValid() && amountField.Kind() == reflect.Float64 {
-		amount := amountField.Float()
-		if amount <= 0 {
-			return fmt.Errorf("amount must be greater than 0")
-		}
-	} else {
-		return fmt.Errorf("invalid amount field")
+	if from == to {
+		return fmt.Errorf("cannot send money to the same address")
 	}
 
 	return nil
-} 
+}
 
 // GetTransactionByInfoRequest проверяет запрос на получения id транзакции по информации о ней
-func ValidateGetTransactionByInfoRequest(req *dto.GetTransactionByInfoRequest) error {
-    if err := ValidateStruct(req); err != nil {
-        return err
-    }
+func ValidateGetTransactionByInfoRequest(req interface{}) error {
+	if err := ValidateStruct(req); err != nil {
+		return err
+	}
 
-    _, err := time.Parse(time.RFC3339, req.CreatedAt)
-    if err != nil {
-        return fmt.Errorf("created_at must be a valid RFC3339 datetime: %v", err)
-    }
+	// Дополнительная валидация времени
+	v := reflect.ValueOf(req).Elem()
+	createdAt := v.FieldByName("CreatedAt").String()
 
-    if req.From == req.To {
-        return fmt.Errorf("from and to must be different")
-    }
+	if _, err := time.Parse(time.RFC3339, createdAt); err != nil {
+		return fmt.Errorf("created_at must be a valid RFC3339 datetime: %v", err)
+	}
 
-    return nil
+	// Проверка на одинаковые адреса
+	from := v.FieldByName("From").String()
+	to := v.FieldByName("To").String()
+
+	if from == to {
+		return fmt.Errorf("from and to must be different")
+	}
+
+	return nil
 }

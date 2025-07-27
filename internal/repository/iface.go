@@ -44,9 +44,9 @@ type DBError interface {
 
 // Коды ошибок для проверки в репозитории (Postgres SQLSTATE)
 const (
-	ErrCodeUniqueViolation      = "23505"
-	ErrCodeCheckViolation       = "23514"
-	ErrCodeForeignKeyViolation  = "23503"
+	ErrCodeUniqueViolation     = "23505"
+	ErrCodeCheckViolation      = "23514"
+	ErrCodeForeignKeyViolation = "23503"
 )
 
 // Имена constraint-ов

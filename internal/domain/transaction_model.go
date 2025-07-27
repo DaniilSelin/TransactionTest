@@ -5,7 +5,7 @@ import (
 )
 
 type Transaction struct {
-	Id       int64
+	Id        int64
 	From      string
 	To        string
 	Amount    float64

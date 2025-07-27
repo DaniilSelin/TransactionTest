@@ -1,13 +1,13 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
+	"TransactionTest/internal/repository"
 	"context"
 	"errors"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-	"TransactionTest/internal/repository"
-	"TransactionTest/internal/domain"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTransactionRepository_GetTransactionById_Success(t *testing.T) {
@@ -110,4 +110,4 @@ func TestTransactionRepository_GetTransactionByInfo_InternalError(t *testing.T) 
 	tr, err := repo.GetTransactionByInfo(ctx, "from", "to", time.Now())
 	assert.True(t, errors.Is(err, domain.ErrInternal))
 	assert.Nil(t, tr)
-} 
+}

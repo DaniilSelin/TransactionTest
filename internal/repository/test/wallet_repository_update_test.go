@@ -1,12 +1,12 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
+	"TransactionTest/internal/repository"
 	"context"
 	"errors"
-	"testing"
-	"TransactionTest/internal/repository"
-	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestWalletRepository_UpdateWalletBalance_Success(t *testing.T) {

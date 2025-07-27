@@ -1,13 +1,12 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
 	"context"
 	"errors"
-	"testing"
-	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
-
 
 func TestWalletService_GetBalance_NotFound(t *testing.T) {
 	repo := &MockWalletRepository{
@@ -79,4 +78,4 @@ func TestWalletService_GetWallet_Success(t *testing.T) {
 	w, code := ws.GetWallet(context.Background(), "addr")
 	assert.NotNil(t, w)
 	assert.Equal(t, domain.CodeOK, code)
-} 
+}

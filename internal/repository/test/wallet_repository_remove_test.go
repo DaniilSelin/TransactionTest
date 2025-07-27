@@ -1,12 +1,12 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
+	"TransactionTest/internal/repository"
 	"context"
 	"errors"
-	"testing"
-	"TransactionTest/internal/repository"
-	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestWalletRepository_RemoveWallet_Success(t *testing.T) {
@@ -43,4 +43,4 @@ func TestWalletRepository_RemoveWallet_InternalError(t *testing.T) {
 	repo := repository.NewWalletRepository(mockDB)
 	err := repo.RemoveWallet(ctx, "addr")
 	assert.True(t, errors.Is(err, domain.ErrInternal))
-} 
+}

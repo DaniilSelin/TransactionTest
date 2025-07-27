@@ -2,8 +2,8 @@ package postgres
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 
 	"TransactionTest/config"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,7 +13,7 @@ func Connect(ctx context.Context, cfg *config.PostgresConfig) (*pgxpool.Pool, er
 	// устанавливаем search_path
 	connString := cfg.Pool.ConnConfig.ConnString()
 	connString = fmt.Sprintf("%s&search_path=%s,public", connString, cfg.Schema)
-	
+
 	poolCfg, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf("FATAL: unable to parse pool config: %w", err)
@@ -29,15 +29,15 @@ func Connect(ctx context.Context, cfg *config.PostgresConfig) (*pgxpool.Pool, er
 	for attempt := 0; attempt <= cfg.ConnectRetries; attempt++ {
 		pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 		if err == nil {
-		return pool, nil
+			return pool, nil
 		}
 		if attempt == cfg.ConnectRetries {
-		break
+			break
 		}
 		select {
 		case <-time.After(cfg.ConnectRetryDelay):
 		case <-ctx.Done():
-		return nil, ctx.Err()
+			return nil, ctx.Err()
 		}
 	}
 

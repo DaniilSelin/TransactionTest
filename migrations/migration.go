@@ -9,9 +9,9 @@ import (
 	"text/template"
 
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 )
 
 // Ошибка для обработки в вызывающем коде (main)
@@ -25,7 +25,7 @@ func init() {
 	source.Register("custom-file-sprintf", &fmtSprintfSource{})
 }
 
-//  Кастомный драйвер поддерживающий форматирование. Подробнее в документации
+// fmtSprintfSource кастомный драйвер поддерживающий форматирование. Подробнее в документации
 type fmtSprintfSource struct {
 	fileDriver *file.File
 	schemaName string
@@ -65,7 +65,7 @@ func (s *fmtSprintfSource) Open(rawURL string) (source.Driver, error) {
 	}
 
 	// Подключаем file-драйвер
-	underlyingURL := "file:" + filePath 
+	underlyingURL := "file:" + filePath
 	fileDriver, err := (&file.File{}).Open(underlyingURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open underlying file source: %w", err)
@@ -135,4 +135,3 @@ func (s *fmtSprintfSource) ReadDown(version uint) (r io.ReadCloser, identifier s
 
 	return io.NopCloser(bytes.NewReader([]byte(substituted))), identifier, nil
 }
-

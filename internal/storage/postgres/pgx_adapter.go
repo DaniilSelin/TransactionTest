@@ -36,9 +36,9 @@ func (e dbErrorAdapter) ConstraintName() string {
 
 type noRowsError struct{}
 
-func (noRowsError) Error() string            { return "no_rows" }
-func (noRowsError) SQLState() string         { return "no_rows" }
-func (noRowsError) ConstraintName() string   { return "" }
+func (noRowsError) Error() string          { return "no_rows" }
+func (noRowsError) SQLState() string       { return "no_rows" }
+func (noRowsError) ConstraintName() string { return "" }
 
 // Row
 type rowAdapter struct {
@@ -46,16 +46,16 @@ type rowAdapter struct {
 }
 
 func (r rowAdapter) Scan(dest ...interface{}) error {
-    err := r.row.Scan(dest...)
-    if err != nil {
-        if pgErr, ok := err.(*pgconn.PgError); ok {
-            return dbErrorAdapter{pgErr}
-        }
-        if errors.Is(err, pgx.ErrNoRows) {
-            return noRowsError{}
-        }
-    }
-    return err
+	err := r.row.Scan(dest...)
+	if err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			return dbErrorAdapter{pgErr}
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return noRowsError{}
+		}
+	}
+	return err
 }
 
 // Rows
@@ -69,15 +69,15 @@ func (r *rowsAdapter) Next() bool {
 func (r *rowsAdapter) Scan(dest ...interface{}) error {
 	err := r.rows.Scan(dest...)
 	if err != nil {
-        // если это Postgres no rows — возвращаем именно эту константу
-        if errors.Is(err, pgx.ErrNoRows) {
-            return pgx.ErrNoRows
-        }
-        // если это PgError — оборачиваем
-        var pgErr *pgconn.PgError
-        if errors.As(err, &pgErr) {
-            return dbErrorAdapter{pgErr}
-        }
+		// если это Postgres no rows — возвращаем именно эту константу
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgx.ErrNoRows
+		}
+		// если это PgError — оборачиваем
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			return dbErrorAdapter{pgErr}
+		}
 	}
 	return err
 }

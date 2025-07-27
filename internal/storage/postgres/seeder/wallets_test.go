@@ -25,10 +25,10 @@ func (m *mockCreateFunc) create(
 	failOnError bool,
 ) (<-chan string, <-chan error, bool) {
 	args := m.Called(ctx, count, balance, failOnError)
-	
+
 	doneChan := args.Get(0).(chan string)
 	errChan := args.Get(1).(chan error)
-	
+
 	return (<-chan string)(doneChan), (<-chan error)(errChan), true
 }
 
@@ -85,7 +85,6 @@ func TestSeedWallets_ErrorFromCreator(t *testing.T) {
 	errChan := make(chan error, 1)
 	errChan <- errors.New("creation error")
 
-
 	mockCreator.On(
 		"create",
 		mock.AnythingOfType("*context.cancelCtx"),
@@ -129,7 +128,7 @@ func TestSeedWallets_WriteError(t *testing.T) {
 
 	close(doneChan)
 	close(errChan)
-	
+
 	err := SeedWallets(context.Background(), cfg, mockCreator.create, func(_ context.Context, _ error) {})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "marker")

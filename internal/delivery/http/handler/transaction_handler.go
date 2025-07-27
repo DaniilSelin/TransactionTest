@@ -5,13 +5,34 @@ import (
 	"net/http"
 	"time"
 
-	"TransactionTest/internal/domain"
 	"TransactionTest/internal/delivery/dto"
 	"TransactionTest/internal/delivery/validator"
+	"TransactionTest/internal/domain"
 
 	"go.uber.org/zap"
 )
 
+// SendMoney обрабатывает HTTP POST запрос для отправки денег между кошельками.
+//
+// Принимает JSON в теле запроса:
+//
+//	{
+//	  "from": "uuid4-адрес-отправителя",
+//	  "to": "uuid4-адрес-получателя",
+//	  "amount": 100.50
+//	}
+//
+// Возможные коды ответа:
+//   - 200 OK: деньги успешно отправлены
+//   - 400 Bad Request: ошибка валидации или недостаточно средств
+//   - 404 Not Found: кошелек не найден
+//   - 500 Internal Server Error: внутренняя ошибка сервера
+//
+// Пример успешного ответа:
+//
+//	{
+//	  "message": "Money sent successfully"
+//	}
 func (h *Handler) SendMoney(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	const op = "SendMoney: "
@@ -64,15 +85,38 @@ func (h *Handler) SendMoney(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(ctx, w, http.StatusOK, map[string]string{"message": "Money sent successfully"})
 }
 
+// GetLastTransactions обрабатывает HTTP GET запрос для получения последних транзакций.
+//
+// Query параметры:
+//   - count: количество транзакций (обязательный, от 1 до 1000)
+//
+// URL: GET /api/transactions?count=10
+//
+// Возможные коды ответа:
+//   - 200 OK: транзакции успешно получены
+//   - 400 Bad Request: неверный параметр count
+//   - 500 Internal Server Error: внутренняя ошибка сервера
+//
+// Пример успешного ответа:
+//
+//	[
+//	  {
+//	    "id": 1,
+//	    "from": "uuid-отправителя",
+//	    "to": "uuid-получателя",
+//	    "amount": 100.50,
+//	    "created_at": "2023-01-01T12:00:00Z"
+//	  }
+//	]
 func (h *Handler) GetLastTransactions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	const op = "GetLastTransactions: "
 
 	count, code, msg := h.parseAndValidateCount(ctx, r, op)
-    if code != 0 {
-        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
-        return
-    }
+	if code != 0 {
+		h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
+		return
+	}
 
 	h.log.Info(
 		ctx,
@@ -110,15 +154,37 @@ func (h *Handler) GetLastTransactions(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
+// GetTransactionById обрабатывает HTTP GET запрос для получения транзакции по ID.
+//
+// Path параметры:
+//   - id: ID транзакции (обязательный, положительное число)
+//
+// URL: GET /api/transaction/123
+//
+// Возможные коды ответа:
+//   - 200 OK: транзакция найдена
+//   - 400 Bad Request: неверный ID
+//   - 404 Not Found: транзакция не найдена
+//   - 500 Internal Server Error: внутренняя ошибка сервера
+//
+// Пример успешного ответа:
+//
+//	{
+//	  "id": 123,
+//	  "from": "uuid-отправителя",
+//	  "to": "uuid-получателя",
+//	  "amount": 100.50,
+//	  "created_at": "2023-01-01T12:00:00Z"
+//	}
 func (h *Handler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	const op = "GetTransactionById: "
 
 	id, code, msg := h.parseAndValidateID(ctx, r, op)
-    if code != 0 {
-        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
-        return
-    }
+	if code != 0 {
+		h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
+		return
+	}
 
 	h.log.Info(
 		ctx,
@@ -153,6 +219,31 @@ func (h *Handler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
+// GetTransactionByInfo обрабатывает HTTP GET запрос для получения транзакции по информации.
+//
+// Принимает JSON в теле запроса:
+//
+//		{
+//			from: адрес отправителя (UUID)
+//	  	to: адрес получателя (UUID)
+//	  	createdAt: время создания в формате RFC3339
+//		}
+//
+// Возможные коды ответа:
+//   - 200 OK: транзакция найдена
+//   - 400 Bad Request: неверные параметры
+//   - 404 Not Found: транзакция не найдена
+//   - 500 Internal Server Error: внутренняя ошибка сервера
+//
+// Пример успешного ответа:
+//
+//	{
+//	  "id": 123,
+//	  "from": "uuid-отправителя",
+//	  "to": "uuid-получателя",
+//	  "amount": 100.50,
+//	  "created_at": "2023-01-01T12:00:00Z"
+//	}
 func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	const op = "GetTransactionByInfo: "
@@ -217,15 +308,33 @@ func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
+// RemoveTransaction обрабатывает HTTP DELETE запрос для удаления транзакции.
+//
+// Path параметры:
+//   - id: ID транзакции (обязательный, положительное число)
+//
+// URL: DELETE /api/transaction/123
+//
+// Возможные коды ответа:
+//   - 200 OK: транзакция успешно удалена
+//   - 400 Bad Request: неверный ID
+//   - 404 Not Found: транзакция не найдена
+//   - 500 Internal Server Error: внутренняя ошибка сервера
+//
+// Пример успешного ответа:
+//
+//	{
+//	  "message": "Transaction removed successfully"
+//	}
 func (h *Handler) RemoveTransaction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	const op = "RemoveTransaction: "
 
 	id, code, msg := h.parseAndValidateID(ctx, r, op)
-    if code != 0 {
-        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
-        return
-    }
+	if code != 0 {
+		h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
+		return
+	}
 
 	h.log.Info(
 		ctx,
@@ -250,4 +359,4 @@ func (h *Handler) RemoveTransaction(w http.ResponseWriter, r *http.Request) {
 		zap.Int64("id", id),
 	)
 	h.writeJSON(ctx, w, http.StatusOK, map[string]string{"message": "Transaction removed successfully"})
-} 
+}

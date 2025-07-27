@@ -33,6 +33,9 @@ seeding: # относиться к пункту - при вервом запус
 server:
   host: 0.0.0.0
   port: 8080
+  ReadTimeout: 15s
+  WriteTimeout: 15s
+  IdleTimeout: 60s
 
 logger:
   logger:

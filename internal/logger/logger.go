@@ -20,7 +20,7 @@ type Logger struct {
 func New(cfgLog *zap.Config) (Logger, error) {
 	// Добавляем энкодер времени и уровня вручную, т.к это функции
 	cfgLog.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	cfgLog.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder 
+	cfgLog.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
 
 	logger, err := cfgLog.Build()
 	if err != nil {

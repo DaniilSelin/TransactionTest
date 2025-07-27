@@ -1,11 +1,11 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
 	"context"
 	"errors"
-	"testing"
-	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestTransactionService_SendMoney_SelfTransfer(t *testing.T) {
@@ -24,7 +24,7 @@ func TestTransactionService_SendMoney_SelfTransfer(t *testing.T) {
 		},
 	}
 
-	ts := newTS(wr, tr)	
+	ts := newTS(wr, tr)
 	code := ts.SendMoney(context.Background(), "addr", "addr", 10)
 	assert.Equal(t, domain.CodeInvalidTransaction, code)
 }
@@ -45,7 +45,7 @@ func TestTransactionService_SendMoney_NegativeAmount(t *testing.T) {
 		},
 	}
 
-	ts := newTS(wr, tr)	
+	ts := newTS(wr, tr)
 	code := ts.SendMoney(context.Background(), "from", "to", -1)
 	assert.Equal(t, domain.CodeNegativeAmount, code)
 }
@@ -70,7 +70,7 @@ func TestTransactionService_SendMoney_SenderNotFound(t *testing.T) {
 		},
 	}
 
-	ts := newTS(wr, tr)	
+	ts := newTS(wr, tr)
 
 	code := ts.SendMoney(context.Background(), "from", "to", 10)
 	assert.Equal(t, domain.CodeWalletNotFound, code)
@@ -140,9 +140,9 @@ func TestTransactionService_SendMoney_InternalErrorOnUpdate(t *testing.T) {
 		},
 	}
 	tr := &MockTransactionRepository{
-	    BeginTXFunc: func(ctx context.Context) (domain.TxExecutor, error) {
-	        return &MockTxExecutor{}, nil
-	    },
+		BeginTXFunc: func(ctx context.Context) (domain.TxExecutor, error) {
+			return &MockTxExecutor{}, nil
+		},
 	}
 
 	ts := newTS(wr, tr)
@@ -191,23 +191,23 @@ func TestTransactionService_SendMoney_InternalErrorOnCommit(t *testing.T) {
 }
 
 func TestTransactionService_SendMoney_Success(t *testing.T) {
-    wr := &MockWalletRepository{
-        GetWalletBalanceFunc: func(ctx context.Context, address string) (float64, error) {
-            return 100, nil
-        },
-        UpdateWalletBalanceTxFunc: func(ctx context.Context, tx domain.TxExecutor, address string, balance float64) error {
-            return nil
-        },
-    }
-    tr := &MockTransactionRepository{
-        BeginTXFunc: func(ctx context.Context) (domain.TxExecutor, error) {
-            return &MockTxExecutor{}, nil
-        },
-        CreateTransactionTxFunc: func(ctx context.Context, tx domain.TxExecutor, from, to string, amount float64) (int64, error) {
-            return 1, nil
-        },
-    }
-    ts := newTS(wr, tr)
-    code := ts.SendMoney(context.Background(), "from", "to", 10)
-    assert.Equal(t, domain.CodeOK, code)
+	wr := &MockWalletRepository{
+		GetWalletBalanceFunc: func(ctx context.Context, address string) (float64, error) {
+			return 100, nil
+		},
+		UpdateWalletBalanceTxFunc: func(ctx context.Context, tx domain.TxExecutor, address string, balance float64) error {
+			return nil
+		},
+	}
+	tr := &MockTransactionRepository{
+		BeginTXFunc: func(ctx context.Context) (domain.TxExecutor, error) {
+			return &MockTxExecutor{}, nil
+		},
+		CreateTransactionTxFunc: func(ctx context.Context, tx domain.TxExecutor, from, to string, amount float64) (int64, error) {
+			return 1, nil
+		},
+	}
+	ts := newTS(wr, tr)
+	code := ts.SendMoney(context.Background(), "from", "to", 10)
+	assert.Equal(t, domain.CodeOK, code)
 }

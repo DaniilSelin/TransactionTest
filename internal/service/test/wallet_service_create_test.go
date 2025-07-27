@@ -1,10 +1,10 @@
 package test
 
 import (
-	"context"
-	"testing"
 	"TransactionTest/internal/domain"
+	"context"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestWalletService_CreateWallet_Negative(t *testing.T) {
@@ -48,4 +48,4 @@ func TestWalletService_CreateWallet_Success(t *testing.T) {
 	addr, code := ws.CreateWallet(context.Background(), 100)
 	assert.NotEmpty(t, addr)
 	assert.Equal(t, domain.CodeOK, code)
-} 
+}

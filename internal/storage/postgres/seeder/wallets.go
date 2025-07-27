@@ -15,9 +15,13 @@ var (
 	ErrCompleted = errors.New("seeder already executed")
 )
 
-type CreateWalletsForSeeding func(context.Context, int, float64, bool) (<-chan string, <-chan error, bool) 
+// CreateWalletsForSeeding сигнатруа функции, содержащей бизнес логику "seeding"
+type CreateWalletsForSeeding func(context.Context, int, float64, bool) (<-chan string, <-chan error, bool)
+
+// LogError сигнатруа функции, которая будет логировать ошибки при ErrDisabled = false
 type LogError func(context.Context, error)
 
+// SeedWallets создает 10 кошельков при первом запуске. Создает маркер файл куда записывает адреса кошельков
 func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart CreateWalletsForSeeding, log LogError) error {
 	if !cfg.Enabled {
 		return ErrDisabled
@@ -52,17 +56,17 @@ func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart 
 	for {
 		select {
 		case address, ok := <-done:
-		    if !ok {
-			return nil // Успешное завершение
-		    }
-		    if _, err := fmt.Fprintln(markerFile, address); err != nil {
-			cancel() // Отправляем сигнал отмены через контекст
-			return fmt.Errorf("FATAL: failed to write address: %w", err)
-		    }
-	    
+			if !ok {
+				return nil // Успешное завершение
+			}
+			if _, err := fmt.Fprintln(markerFile, address); err != nil {
+				cancel() // Отправляем сигнал отмены через контекст
+				return fmt.Errorf("FATAL: failed to write address: %w", err)
+			}
+
 		case err, ok := <-errChan:
 			if !ok {
-			    return nil // errChan закрыт без ошибки — конец
+				return nil // errChan закрыт без ошибки — конец
 			}
 			if cfg.FailOnError {
 				return fmt.Errorf("seeding failed: %w", err)

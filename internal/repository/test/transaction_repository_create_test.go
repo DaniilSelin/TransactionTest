@@ -1,12 +1,12 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
+	"TransactionTest/internal/repository"
 	"context"
 	"errors"
-	"testing"
-	"TransactionTest/internal/repository"
-	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 type mockDBError struct {
@@ -14,9 +14,9 @@ type mockDBError struct {
 	constraint string
 }
 
-func (e *mockDBError) Error() string                 { return "mock db error" }
-func (e *mockDBError) SQLState() string              { return e.sqlState }
-func (e *mockDBError) ConstraintName() string        { return e.constraint }
+func (e *mockDBError) Error() string          { return "mock db error" }
+func (e *mockDBError) SQLState() string       { return e.sqlState }
+func (e *mockDBError) ConstraintName() string { return e.constraint }
 
 func TestTransactionRepository_CreateTransaction_Success(t *testing.T) {
 	ctx := context.Background()
@@ -160,4 +160,4 @@ func TestTransactionRepository_CreateTransactionTx_InternalError(t *testing.T) {
 	repo := repository.NewTransactionRepository(nil)
 	_, err := repo.CreateTransactionTx(ctx, *mockTx, "from", "to", 10)
 	assert.True(t, errors.Is(err, domain.ErrInternal))
-} 
+}

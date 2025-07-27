@@ -2,27 +2,27 @@ package service
 
 import (
 	"context"
-    "errors"
-    "time"
+	"errors"
+	"time"
 
 	"TransactionTest/internal/domain"
 	"TransactionTest/internal/logger"
-	
-    "go.uber.org/zap"
+
+	"go.uber.org/zap"
 )
 
 type TransactionService struct {
-    transactionRepo ITransactionRepository
-    walletRepo      IWalletRepository
-    log logger.Logger
+	transactionRepo ITransactionRepository
+	walletRepo      IWalletRepository
+	log             logger.Logger
 }
 
 func NewTransactionService(tr ITransactionRepository, wr IWalletRepository, l logger.Logger) *TransactionService {
-    return &TransactionService{
-        transactionRepo: tr,
-        walletRepo:      wr,
-        log: l,
-    }
+	return &TransactionService{
+		transactionRepo: tr,
+		walletRepo:      wr,
+		log:             l,
+	}
 }
 
 func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, amount float64) domain.ErrorCode {
@@ -93,72 +93,72 @@ func (ts *TransactionService) SendMoney(ctx context.Context, from, to string, am
 		return domain.CodeInternal
 	}
 
-	ts.log.Info(ctx, "SendMoney: transaction completed successfully", 
-		zap.String("from", from), 
-		zap.String("to", to), 
+	ts.log.Info(ctx, "SendMoney: transaction completed successfully",
+		zap.String("from", from),
+		zap.String("to", to),
 		zap.Float64("amount", amount))
 	return domain.CodeOK
 }
 
 func (ts *TransactionService) GetLastTransactions(ctx context.Context, limit int) ([]domain.Transaction, domain.ErrorCode) {
-    if limit <= 0 {
+	if limit <= 0 {
 		ts.log.Warn(ctx, "GetLastTransactions: limit must be greater than zero")
 		return nil, domain.CodeInvalidLimit
 	}
 
-    transactions, err := ts.transactionRepo.GetLastTransactions(ctx, limit)
-    if err != nil {
-        ts.log.Error(ctx, "GetLastTransactions", zap.Error(err))
-        return nil, domain.CodeInternal
-    }
-    ts.log.Info(ctx, "GetTransactionByInfo: success get last transaction", zap.Int("limit", limit))
-    return transactions, domain.CodeOK
+	transactions, err := ts.transactionRepo.GetLastTransactions(ctx, limit)
+	if err != nil {
+		ts.log.Error(ctx, "GetLastTransactions", zap.Error(err))
+		return nil, domain.CodeInternal
+	}
+	ts.log.Info(ctx, "GetTransactionByInfo: success get last transaction", zap.Int("limit", limit))
+	return transactions, domain.CodeOK
 }
 
 func (ts *TransactionService) GetTransactionById(ctx context.Context, id int64) (*domain.Transaction, domain.ErrorCode) {
-    transaction, err := ts.transactionRepo.GetTransactionById(ctx, id)
-    if err != nil {
-        if errors.Is(err, domain.ErrNotFound) {
+	transaction, err := ts.transactionRepo.GetTransactionById(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
 			ts.log.Warn(ctx, "GetTransactionById: transaction not found", zap.Error(err))
 			return nil, domain.CodeTransactionNotFound
 		}
-		ts.log.Error(ctx, "GetTransactionById",  zap.Error(err))
+		ts.log.Error(ctx, "GetTransactionById", zap.Error(err))
 		return nil, domain.CodeInternal
-    }
-    ts.log.Info(ctx, "GetTransactionByInfo: success get transaction", zap.Int64("id", id))
-    return transaction, domain.CodeOK
+	}
+	ts.log.Info(ctx, "GetTransactionByInfo: success get transaction", zap.Int64("id", id))
+	return transaction, domain.CodeOK
 }
 
 func (ts *TransactionService) GetTransactionByInfo(ctx context.Context, from, to string, createdAt time.Time) (*domain.Transaction, domain.ErrorCode) {
-    transaction, err := ts.transactionRepo.GetTransactionByInfo(ctx, from, to, createdAt)
-    if err != nil {
-        if errors.Is(err, domain.ErrNotFound) {
+	transaction, err := ts.transactionRepo.GetTransactionByInfo(ctx, from, to, createdAt)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
 			ts.log.Warn(ctx, "GetTransactionByInfo: transaction not found", zap.Error(err))
 			return nil, domain.CodeTransactionNotFound
 		}
-		ts.log.Error(ctx, "GetTransactionByInfo",  zap.Error(err))
+		ts.log.Error(ctx, "GetTransactionByInfo", zap.Error(err))
 		return nil, domain.CodeInternal
-    }
-    ts.log.Info(
-        ctx, 
-        "GetTransactionByInfo: success get transaction",
-        zap.String("from", from),
-        zap.String("to", to),
-        zap.Time("createdAt", createdAt),
-    )
-    return transaction, domain.CodeOK
+	}
+	ts.log.Info(
+		ctx,
+		"GetTransactionByInfo: success get transaction",
+		zap.String("from", from),
+		zap.String("to", to),
+		zap.Time("createdAt", createdAt),
+	)
+	return transaction, domain.CodeOK
 }
 
 func (ts *TransactionService) RemoveTransaction(ctx context.Context, id int64) domain.ErrorCode {
-    err := ts.transactionRepo.RemoveTransaction(ctx, id)
-    if err != nil {
-        if errors.Is(err, domain.ErrNotFound) {
+	err := ts.transactionRepo.RemoveTransaction(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
 			ts.log.Warn(ctx, "RemoveTransaction: transaction not found", zap.Error(err))
 			return domain.CodeTransactionNotFound
 		}
-		ts.log.Error(ctx, "RemoveTransaction",  zap.Error(err))
+		ts.log.Error(ctx, "RemoveTransaction", zap.Error(err))
 		return domain.CodeInternal
-    }
-    ts.log.Info(ctx, "RemoveTransaction: success remove transaction", zap.Int64("id", id))
-    return domain.CodeOK
+	}
+	ts.log.Info(ctx, "RemoveTransaction: success remove transaction", zap.Int64("id", id))
+	return domain.CodeOK
 }

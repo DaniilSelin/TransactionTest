@@ -6,20 +6,20 @@ import (
 
 	"TransactionTest/internal/domain"
 	"TransactionTest/internal/logger"
-	
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 type WalletService struct {
 	walletRepo IWalletRepository
-	log logger.Logger
+	log        logger.Logger
 }
 
 func NewWalletService(wr IWalletRepository, l logger.Logger) *WalletService {
 	return &WalletService{
 		walletRepo: wr,
-		log: l,
+		log:        l,
 	}
 }
 
@@ -34,16 +34,16 @@ func (ws *WalletService) CreateWallet(ctx context.Context, balance float64) (str
 	if err := ws.walletRepo.CreateWallet(ctx, address, balance); err != nil {
 		switch {
 		case errors.Is(err, domain.ErrInternal): // Для ускорения проверок
-			ws.log.Error(ctx, "CreateWalett",  zap.Error(err))
+			ws.log.Error(ctx, "CreateWalett", zap.Error(err))
 			return "", domain.CodeInternal // 99% ошибок
 		case errors.Is(err, domain.ErrWalletAlreadyExists):
-			ws.log.Warn(ctx, "CreateWalett",  zap.Error(err))
+			ws.log.Warn(ctx, "CreateWalett", zap.Error(err))
 			return "", domain.CodeDuplicateWallet
 		case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
-			ws.log.Warn(ctx, "CreateWalett",  zap.Error(err))
+			ws.log.Warn(ctx, "CreateWalett", zap.Error(err))
 			return "", domain.CodeNegativeBalance
 		default:
-			ws.log.Error(ctx, "CreateWalett: unexpected",  zap.Error(err))
+			ws.log.Error(ctx, "CreateWalett: unexpected", zap.Error(err))
 			return "", domain.CodeInternal
 		}
 	}
@@ -55,10 +55,10 @@ func (ws *WalletService) GetBalance(ctx context.Context, address string) (float6
 	balance, err := ws.walletRepo.GetWalletBalance(ctx, address)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			ws.log.Warn(ctx, "GetBalance: wallet not found",  zap.Error(err))
+			ws.log.Warn(ctx, "GetBalance: wallet not found", zap.Error(err))
 			return 0, domain.CodeWalletNotFound
 		}
-		ws.log.Error(ctx, "GetBalance",  zap.Error(err))
+		ws.log.Error(ctx, "GetBalance", zap.Error(err))
 		return 0, domain.CodeInternal
 	}
 	ws.log.Info(ctx, "GetBalance: success get wallet", zap.String("address", address), zap.Float64("balance", balance))
@@ -69,13 +69,13 @@ func (ws *WalletService) GetWallet(ctx context.Context, address string) (*domain
 	wallet, err := ws.walletRepo.GetWallet(ctx, address)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			ws.log.Warn(ctx, "GetWallet: wallet not found",  zap.Error(err))
+			ws.log.Warn(ctx, "GetWallet: wallet not found", zap.Error(err))
 			return nil, domain.CodeWalletNotFound
 		}
-		ws.log.Error(ctx, "GetBalance",  zap.Error(err))
+		ws.log.Error(ctx, "GetBalance", zap.Error(err))
 		return nil, domain.CodeInternal
 	}
-	ws.log.Info(ctx, "GetWallet: success get wallet",  zap.String("address", address))
+	ws.log.Info(ctx, "GetWallet: success get wallet", zap.String("address", address))
 	return wallet, domain.CodeOK
 }
 
@@ -87,16 +87,16 @@ func (ws *WalletService) UpdateBalance(ctx context.Context, address string, newB
 
 	err := ws.walletRepo.UpdateWalletBalance(ctx, address, newBalance)
 	if err != nil {
-			switch {
-			case errors.Is(err, domain.ErrNotFound):
-				ws.log.Warn(ctx, "UpdateBalance: wallet not found",  zap.Error(err))
-				return domain.CodeWalletNotFound
-			case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
-				ws.log.Warn(ctx, "UpdateBalance",  zap.Error(err))
-				return domain.CodeNegativeBalance
-			default:
-				ws.log.Error(ctx, "UpdateBalance",  zap.Error(err))
-				return domain.CodeInternal
+		switch {
+		case errors.Is(err, domain.ErrNotFound):
+			ws.log.Warn(ctx, "UpdateBalance: wallet not found", zap.Error(err))
+			return domain.CodeWalletNotFound
+		case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
+			ws.log.Warn(ctx, "UpdateBalance", zap.Error(err))
+			return domain.CodeNegativeBalance
+		default:
+			ws.log.Error(ctx, "UpdateBalance", zap.Error(err))
+			return domain.CodeInternal
 		}
 	}
 	ws.log.Info(ctx, "UpdateBalance: success update wallet", zap.String("address", address), zap.Float64("newBalance", newBalance))
@@ -107,10 +107,10 @@ func (ws *WalletService) RemoveWallet(ctx context.Context, address string) domai
 	err := ws.walletRepo.RemoveWallet(ctx, address)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			ws.log.Warn(ctx, "RemoveWallet: wallet not found",  zap.Error(err))
+			ws.log.Warn(ctx, "RemoveWallet: wallet not found", zap.Error(err))
 			return domain.CodeWalletNotFound
 		}
-		ws.log.Error(ctx, "RemoveWallet",  zap.Error(err))
+		ws.log.Error(ctx, "RemoveWallet", zap.Error(err))
 		return domain.CodeInternal
 	}
 	ws.log.Info(ctx, "UpdateBalance: success remove wallet", zap.String("address", address))
@@ -119,16 +119,16 @@ func (ws *WalletService) RemoveWallet(ctx context.Context, address string) domai
 
 func (ws *WalletService) CreateWalletsForSeeding(
 	ctx context.Context,
-	count int, 
-	balance float64, 
+	count int,
+	balance float64,
 	failOnError bool,
-) (<-chan string, <-chan error, bool){
+) (<-chan string, <-chan error, bool) {
 	done := make(chan string)
 	errChan := make(chan error, count)
 
-	tx, err :=  ws.walletRepo.BeginTX(ctx)
+	tx, err := ws.walletRepo.BeginTX(ctx)
 	if err != nil {
-		ws.log.Error(ctx, "CreateWalletsForSeeding: failed start tx",  zap.Error(err))
+		ws.log.Error(ctx, "CreateWalletsForSeeding: failed start tx", zap.Error(err))
 		close(done)
 		close(errChan)
 		return done, errChan, false
@@ -151,30 +151,30 @@ func (ws *WalletService) CreateWalletsForSeeding(
 					errChan <- err
 					switch {
 					case errors.Is(err, domain.ErrInternal): // Для ускорения проверок
-						ws.log.Error(ctx, "CreateWalletsForSeeding",  zap.Error(err))
+						ws.log.Error(ctx, "CreateWalletsForSeeding", zap.Error(err))
 						if failOnError {
-							rollBack(ctx) 
+							rollBack(ctx)
 							return
 						}
 						continue
 					case errors.Is(err, domain.ErrWalletAlreadyExists):
-						ws.log.Warn(ctx, "CreateWalletsForSeeding",  zap.Error(err))
+						ws.log.Warn(ctx, "CreateWalletsForSeeding", zap.Error(err))
 						if failOnError {
-							rollBack(ctx) 
+							rollBack(ctx)
 							return
 						}
 						continue
 					case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
-						ws.log.Warn(ctx, "CreateWalletsForSeeding",  zap.Error(err))
+						ws.log.Warn(ctx, "CreateWalletsForSeeding", zap.Error(err))
 						if failOnError {
-							rollBack(ctx) 
+							rollBack(ctx)
 							return
 						}
 						continue
 					default:
-						ws.log.Error(ctx, "CreateWalletsForSeeding: unexpected",  zap.Error(err))
+						ws.log.Error(ctx, "CreateWalletsForSeeding: unexpected", zap.Error(err))
 						if failOnError {
-							rollBack(ctx) 
+							rollBack(ctx)
 							return
 						}
 						continue

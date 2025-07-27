@@ -1,13 +1,12 @@
 package test
 
 import (
-	"context"
-	"testing"
-	"errors"
 	"TransactionTest/internal/domain"
+	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
-
 
 func TestWalletService_RemoveWallet_NotFound(t *testing.T) {
 	repo := &MockWalletRepository{

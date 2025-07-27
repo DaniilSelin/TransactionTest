@@ -1,14 +1,14 @@
 package test
 
 import (
-	"context"
-	"errors"
-	"testing"
-	"time"
 	"TransactionTest/internal/domain"
 	"TransactionTest/internal/logger"
 	"TransactionTest/internal/service"
+	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ func newTS(walletRepo service.IWalletRepository, txRepo service.ITransactionRepo
 	cfg := zap.NewProductionConfig()
 	cfg.Level = zap.NewAtomicLevelAt(zap.FatalLevel)
 	log, _ := logger.New(&cfg)
-    return service.NewTransactionService(txRepo, walletRepo, log)
+	return service.NewTransactionService(txRepo, walletRepo, log)
 }
 
 func newWS(walletRepo service.IWalletRepository) *service.WalletService {
@@ -128,4 +128,4 @@ func TestTransactionService_GetTransactionByInfo_Success(t *testing.T) {
 	trn, code := ts.GetTransactionByInfo(context.Background(), "from", "to", time.Now())
 	assert.Equal(t, domain.CodeOK, code)
 	assert.NotNil(t, trn)
-} 
+}

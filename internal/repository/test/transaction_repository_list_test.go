@@ -1,13 +1,13 @@
 package test
 
 import (
+	"TransactionTest/internal/domain"
+	"TransactionTest/internal/repository"
 	"context"
 	"errors"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-	"TransactionTest/internal/repository"
-	"TransactionTest/internal/domain"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTransactionRepository_GetLastTransactions_Success(t *testing.T) {
@@ -82,8 +82,8 @@ func TestTransactionRepository_GetLastTransactions_RowsErr(t *testing.T) {
 	mockDB := &MockDB{
 		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 			return &MockRows{
-				NextFunc: func() bool { return false },
-				ScanFunc: func(dest ...interface{}) error { return nil },
+				NextFunc:  func() bool { return false },
+				ScanFunc:  func(dest ...interface{}) error { return nil },
 				CloseFunc: func() {},
 				ErrFunc:   func() error { return errors.New("fail-rows") },
 			}, nil
@@ -93,4 +93,4 @@ func TestTransactionRepository_GetLastTransactions_RowsErr(t *testing.T) {
 	trs, err := repo.GetLastTransactions(ctx, 1)
 	assert.True(t, errors.Is(err, domain.ErrInternal))
 	assert.Nil(t, trs)
-} 
+}
