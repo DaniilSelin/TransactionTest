@@ -4,14 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"TransactionTest/internal/service"
 	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 
-func newWS(repo *MockWalletRepository, logger *MockLogger) *service.WalletService {
-	return service.NewWalletService(repo, logger)
-}
 
 func TestWalletService_GetBalance_NotFound(t *testing.T) {
 	repo := &MockWalletRepository{
@@ -19,7 +15,7 @@ func TestWalletService_GetBalance_NotFound(t *testing.T) {
 			return 0, domain.ErrNotFound
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	bal, code := ws.GetBalance(context.Background(), "addr")
 	assert.Equal(t, float64(0), bal)
 	assert.Equal(t, domain.CodeWalletNotFound, code)
@@ -31,7 +27,7 @@ func TestWalletService_GetBalance_Internal(t *testing.T) {
 			return 0, errors.New("fail")
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	bal, code := ws.GetBalance(context.Background(), "addr")
 	assert.Equal(t, float64(0), bal)
 	assert.Equal(t, domain.CodeInternal, code)
@@ -43,7 +39,7 @@ func TestWalletService_GetBalance_Success(t *testing.T) {
 			return 123.45, nil
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	bal, code := ws.GetBalance(context.Background(), "addr")
 	assert.Equal(t, 123.45, bal)
 	assert.Equal(t, domain.CodeOK, code)
@@ -55,7 +51,7 @@ func TestWalletService_GetWallet_NotFound(t *testing.T) {
 			return nil, domain.ErrNotFound
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	w, code := ws.GetWallet(context.Background(), "addr")
 	assert.Nil(t, w)
 	assert.Equal(t, domain.CodeWalletNotFound, code)
@@ -67,7 +63,7 @@ func TestWalletService_GetWallet_Internal(t *testing.T) {
 			return nil, errors.New("fail")
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	w, code := ws.GetWallet(context.Background(), "addr")
 	assert.Nil(t, w)
 	assert.Equal(t, domain.CodeInternal, code)
@@ -79,7 +75,7 @@ func TestWalletService_GetWallet_Success(t *testing.T) {
 			return &domain.Wallet{Address: "addr", Balance: 100}, nil
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	w, code := ws.GetWallet(context.Background(), "addr")
 	assert.NotNil(t, w)
 	assert.Equal(t, domain.CodeOK, code)

@@ -10,19 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockDBError struct {
-	sqlState   string
-	constraint string
-}
-
-func (e *mockDBError) Error() string                 { return "mock db error" }
-func (e *mockDBError) SQLState() string              { return e.sqlState }
-func (e *mockDBError) ConstraintName() string        { return e.constraint }
-
 func TestTransactionRepository_GetTransactionById_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				*dest[0].(*int64) = 1
 				*dest[1].(*string) = "from"
@@ -43,7 +34,7 @@ func TestTransactionRepository_GetTransactionById_Success(t *testing.T) {
 func TestTransactionRepository_GetTransactionById_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: "no_rows"}
 			}}
@@ -58,7 +49,7 @@ func TestTransactionRepository_GetTransactionById_NotFound(t *testing.T) {
 func TestTransactionRepository_GetTransactionById_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return errors.New("fail")
 			}}
@@ -73,7 +64,7 @@ func TestTransactionRepository_GetTransactionById_InternalError(t *testing.T) {
 func TestTransactionRepository_GetTransactionByInfo_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				*dest[0].(*int64) = 1
 				*dest[1].(*string) = "from"
@@ -94,7 +85,7 @@ func TestTransactionRepository_GetTransactionByInfo_Success(t *testing.T) {
 func TestTransactionRepository_GetTransactionByInfo_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: "no_rows"}
 			}}
@@ -109,7 +100,7 @@ func TestTransactionRepository_GetTransactionByInfo_NotFound(t *testing.T) {
 func TestTransactionRepository_GetTransactionByInfo_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return errors.New("fail")
 			}}

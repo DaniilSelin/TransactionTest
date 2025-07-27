@@ -8,6 +8,6 @@ type CountQuery struct {
     Count int `validate:"required,gt=0"`
 }
 
-type TransactionIDPath struct {
+type TransactionID struct {
     ID int64 `validate:"required,gt=0"`
 }

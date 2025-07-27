@@ -2,15 +2,26 @@ package api
 
 import (
 	"net/http"
-
-	"TransactionTest/internal/delivery/http/handler"
-	"TransactionTest/internal/logger"
-	"TransactionTest/internal/service"
-
 	"github.com/gorilla/mux"
+	"TransactionTest/internal/logger"
 )
 
-func NewRouter(transactionService *service.TransactionService, walletService *service.WalletService, log logger.Logger) *mux.Router {
+type IHanlder interface {
+	SendMoney(w http.ResponseWriter, r *http.Request)
+	GetLastTransactions(w http.ResponseWriter, r *http.Request)
+	GetBalance(w http.ResponseWriter, r *http.Request)
+
+	GetTransactionById(w http.ResponseWriter, r *http.Request)
+	RemoveTransaction(w http.ResponseWriter, r *http.Request)
+	GetTransactionByInfo(w http.ResponseWriter, r *http.Request)
+
+	CreateWallet(w http.ResponseWriter, r *http.Request)
+	GetWallet(w http.ResponseWriter, r *http.Request)
+	RemoveWallet(w http.ResponseWriter, r *http.Request)
+	UpdateBalance(w http.ResponseWriter, r *http.Request)
+}
+
+func NewRouter(h IHanlder, log logger.Logger) *mux.Router {
 	r := mux.NewRouter()
 	
 	// Добавляем middleware
@@ -18,8 +29,6 @@ func NewRouter(transactionService *service.TransactionService, walletService *se
 	r.Use(LoggingMiddleware(log))
 	r.Use(RecoveryMiddleware(log))
 	
-	h := handler.NewHandler(transactionService, walletService, log)
-
 	api := r.PathPrefix("/api").Subrouter()
 
 	// Пути указанные в ТЗ

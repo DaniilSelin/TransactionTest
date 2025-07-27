@@ -2,16 +2,11 @@ package test
 
 import (
 	"context"
-	"errors"
 	"testing"
-	"TransactionTest/internal/service"
+	"errors"
 	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
-
-func newTS(walletRepo *MockWalletRepository, txRepo *MockTransactionRepository, logger *MockLogger) *service.TransactionService {
-	return service.NewTransactionService(txRepo, walletRepo, logger)
-}
 
 func TestTransactionService_RemoveTransaction_NotFound(t *testing.T) {
 	tr := &MockTransactionRepository{
@@ -19,7 +14,7 @@ func TestTransactionService_RemoveTransaction_NotFound(t *testing.T) {
 			return domain.ErrNotFound
 		},
 	}
-	ts := newTS(&MockWalletRepository{}, tr, &MockLogger{})
+	ts := newTS(&MockWalletRepository{}, tr)
 	code := ts.RemoveTransaction(context.Background(), 1)
 	assert.Equal(t, domain.CodeTransactionNotFound, code)
 }
@@ -30,7 +25,7 @@ func TestTransactionService_RemoveTransaction_InternalError(t *testing.T) {
 			return errors.New("fail")
 		},
 	}
-	ts := newTS(&MockWalletRepository{}, tr, &MockLogger{})
+	ts := newTS(&MockWalletRepository{}, tr)
 	code := ts.RemoveTransaction(context.Background(), 1)
 	assert.Equal(t, domain.CodeInternal, code)
 }
@@ -41,7 +36,7 @@ func TestTransactionService_RemoveTransaction_Success(t *testing.T) {
 			return nil
 		},
 	}
-	ts := newTS(&MockWalletRepository{}, tr, &MockLogger{})
+	ts := newTS(&MockWalletRepository{}, tr)
 	code := ts.RemoveTransaction(context.Background(), 1)
 	assert.Equal(t, domain.CodeOK, code)
-} 
+}

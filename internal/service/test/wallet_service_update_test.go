@@ -4,17 +4,12 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"TransactionTest/internal/service"
 	"TransactionTest/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 
-func newWS(repo *MockWalletRepository, logger *MockLogger) *service.WalletService {
-	return service.NewWalletService(repo, logger)
-}
-
 func TestWalletService_UpdateBalance_Negative(t *testing.T) {
-	ws := newWS(&MockWalletRepository{}, &MockLogger{})
+	ws := newWS(&MockWalletRepository{})
 	code := ws.UpdateBalance(context.Background(), "addr", -1)
 	assert.Equal(t, domain.CodeNegativeBalance, code)
 }
@@ -25,7 +20,7 @@ func TestWalletService_UpdateBalance_NotFound(t *testing.T) {
 			return domain.ErrNotFound
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	code := ws.UpdateBalance(context.Background(), "addr", 100)
 	assert.Equal(t, domain.CodeWalletNotFound, code)
 }
@@ -36,7 +31,7 @@ func TestWalletService_UpdateBalance_Internal(t *testing.T) {
 			return errors.New("fail")
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	code := ws.UpdateBalance(context.Background(), "addr", 100)
 	assert.Equal(t, domain.CodeInternal, code)
 }
@@ -47,7 +42,7 @@ func TestWalletService_UpdateBalance_Success(t *testing.T) {
 			return nil
 		},
 	}
-	ws := newWS(repo, &MockLogger{})
+	ws := newWS(repo)
 	code := ws.UpdateBalance(context.Background(), "addr", 100)
 	assert.Equal(t, domain.CodeOK, code)
 } 

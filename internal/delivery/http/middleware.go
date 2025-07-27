@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"time"
+	"fmt"
 
 	"TransactionTest/internal/logger"
+	"TransactionTest/internal/domain"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -56,14 +58,12 @@ func RecoveryMiddleware(log logger.Logger) func(http.Handler) http.Handler {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
 					
-					response := ErrorResponse{
-						Error:   "Internal Server Error",
-						Code:    string(logger.LoggerKey),
-						Message: "An unexpected error occurred",
-					}
-					
-					// Используем простой JSON encoder для избежания паники
-					jsonResponse := `{"error":"Internal Server Error","code":"INTERNAL_ERROR","message":"An unexpected error occurred"}`
+					jsonResponse := fmt.Sprintf(
+					    `{"error":"%s","code":"%s","message":"%s"}`,
+					    "Internal Server Error",
+					    domain.CodeInternal,
+					    "An unexpected error occurred",
+					)
 					w.Write([]byte(jsonResponse))
 				}
 			}()

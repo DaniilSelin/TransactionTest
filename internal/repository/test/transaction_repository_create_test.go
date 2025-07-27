@@ -21,7 +21,7 @@ func (e *mockDBError) ConstraintName() string        { return e.constraint }
 func TestTransactionRepository_CreateTransaction_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				*dest[0].(*int64) = 42
 				return nil
@@ -37,7 +37,7 @@ func TestTransactionRepository_CreateTransaction_Success(t *testing.T) {
 func TestTransactionRepository_CreateTransaction_NegativeAmount(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: repository.ErrCodeCheckViolation, constraint: repository.ConstraintAmountPositive}
 			}}
@@ -51,7 +51,7 @@ func TestTransactionRepository_CreateTransaction_NegativeAmount(t *testing.T) {
 func TestTransactionRepository_CreateTransaction_SelfTransfer(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: repository.ErrCodeCheckViolation, constraint: repository.ConstraintNoSelfTransfer}
 			}}
@@ -65,7 +65,7 @@ func TestTransactionRepository_CreateTransaction_SelfTransfer(t *testing.T) {
 func TestTransactionRepository_CreateTransaction_FKViolation(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: repository.ErrCodeForeignKeyViolation}
 			}}
@@ -79,7 +79,7 @@ func TestTransactionRepository_CreateTransaction_FKViolation(t *testing.T) {
 func TestTransactionRepository_CreateTransaction_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return errors.New("fail")
 			}}
@@ -93,7 +93,7 @@ func TestTransactionRepository_CreateTransaction_InternalError(t *testing.T) {
 func TestTransactionRepository_CreateTransactionTx_Success(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				*dest[0].(*int64) = 42
 				return nil
@@ -101,7 +101,7 @@ func TestTransactionRepository_CreateTransactionTx_Success(t *testing.T) {
 		},
 	}
 	repo := repository.NewTransactionRepository(nil)
-	id, err := repo.CreateTransactionTx(ctx, *mockTx, "from", "to", 10)
+	id, err := repo.CreateTransactionTx(ctx, mockTx, "from", "to", 10)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(42), id)
 }
@@ -109,7 +109,7 @@ func TestTransactionRepository_CreateTransactionTx_Success(t *testing.T) {
 func TestTransactionRepository_CreateTransactionTx_NegativeAmount(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: repository.ErrCodeCheckViolation, constraint: repository.ConstraintAmountPositive}
 			}}
@@ -123,7 +123,7 @@ func TestTransactionRepository_CreateTransactionTx_NegativeAmount(t *testing.T) 
 func TestTransactionRepository_CreateTransactionTx_SelfTransfer(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: repository.ErrCodeCheckViolation, constraint: repository.ConstraintNoSelfTransfer}
 			}}
@@ -137,7 +137,7 @@ func TestTransactionRepository_CreateTransactionTx_SelfTransfer(t *testing.T) {
 func TestTransactionRepository_CreateTransactionTx_FKViolation(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: repository.ErrCodeForeignKeyViolation}
 			}}
@@ -151,7 +151,7 @@ func TestTransactionRepository_CreateTransactionTx_FKViolation(t *testing.T) {
 func TestTransactionRepository_CreateTransactionTx_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return errors.New("fail")
 			}}

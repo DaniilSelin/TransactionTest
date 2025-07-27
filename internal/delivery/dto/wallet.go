@@ -8,10 +8,6 @@ type UpdateBalanceRequest struct {
     Balance float64 `json:"balance" validate:"required,gte=0"`
 }
 
-type UpdateBalanceRequest struct {
-    Balance float64 `json:"balance" validate:"required,gte=0"`
-}
-
 type CreateWalletResponse struct {
     Address string `json:"address"`
 }

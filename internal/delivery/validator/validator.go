@@ -2,8 +2,11 @@ package validator
 
 import (
 	"fmt"
+	"time"
 	"reflect"
 	"strings"
+
+	"TransactionTest/internal/delivery/dto"
 
 	"github.com/go-playground/validator/v10"
 )

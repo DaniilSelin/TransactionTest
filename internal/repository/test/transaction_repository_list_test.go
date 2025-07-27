@@ -10,19 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockDBError struct {
-	sqlState   string
-	constraint string
-}
-
-func (e *mockDBError) Error() string                 { return "mock db error" }
-func (e *mockDBError) SQLState() string              { return e.sqlState }
-func (e *mockDBError) ConstraintName() string        { return e.constraint }
-
 func TestTransactionRepository_GetLastTransactions_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 			calls := 0
 			return &MockRows{
 				NextFunc: func() bool {
@@ -52,7 +43,7 @@ func TestTransactionRepository_GetLastTransactions_Success(t *testing.T) {
 func TestTransactionRepository_GetLastTransactions_QueryError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 			return nil, errors.New("fail")
 		},
 	}
@@ -65,7 +56,7 @@ func TestTransactionRepository_GetLastTransactions_QueryError(t *testing.T) {
 func TestTransactionRepository_GetLastTransactions_ScanError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 			calls := 0
 			return &MockRows{
 				NextFunc: func() bool {
@@ -89,7 +80,7 @@ func TestTransactionRepository_GetLastTransactions_ScanError(t *testing.T) {
 func TestTransactionRepository_GetLastTransactions_RowsErr(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 			return &MockRows{
 				NextFunc: func() bool { return false },
 				ScanFunc: func(dest ...interface{}) error { return nil },

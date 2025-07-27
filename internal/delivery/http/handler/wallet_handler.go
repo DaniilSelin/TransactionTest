@@ -3,12 +3,12 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"TransactionTest/internal/domain"
 	"TransactionTest/internal/delivery/dto"
 	"TransactionTest/internal/delivery/validator"
 
-	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +23,7 @@ func (h *Handler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 			op+"failed to decode JSON",
 			zap.Error(err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
 		return
 	}
 
@@ -39,7 +39,7 @@ func (h *Handler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 			op+"validation failed",
 			zap.Any("errors", err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, err.Error())
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, err.Error())
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h *Handler) CreateWallet(w http.ResponseWriter, r *http.Request) {
 		zap.String("address", address),
 		zap.Float64("balance", req.Balance),
 	)
-	h.writeJSON(w, http.StatusCreated, dto.CreateWalletResponse{Address: address})
+	h.writeJSON(ctx, w, http.StatusCreated, dto.CreateWalletResponse{Address: address})
 }
 
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 
     address, code, msg := h.parseAndValidateAddress(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -96,7 +96,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 		zap.String("address", address),
 		zap.Float64("balance", balance),
 	)
-	h.writeJSON(w, http.StatusOK, dto.BalanceResponse{Balance: balance})
+	h.writeJSON(ctx, w, http.StatusOK, dto.BalanceResponse{Balance: balance})
 }
 
 func (h *Handler) GetWallet(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +105,7 @@ func (h *Handler) GetWallet(w http.ResponseWriter, r *http.Request) {
 
     address, code, msg := h.parseAndValidateAddress(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -137,7 +137,7 @@ func (h *Handler) GetWallet(w http.ResponseWriter, r *http.Request) {
 		op+"wallet retrieved successfully",
 		zap.String("address", address),
 	)
-	h.writeJSON(w, http.StatusOK, response)
+	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
 func (h *Handler) UpdateBalance(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +146,7 @@ func (h *Handler) UpdateBalance(w http.ResponseWriter, r *http.Request) {
 
 	address, code, msg := h.parseAndValidateAddress(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -157,7 +157,7 @@ func (h *Handler) UpdateBalance(w http.ResponseWriter, r *http.Request) {
 			op+"failed to decode JSON",
 			zap.Error(err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h *Handler) UpdateBalance(w http.ResponseWriter, r *http.Request) {
 			op+"request validation failed",
 			zap.Any("errors", err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, err.Error())
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, err.Error())
 		return
 	}
 
@@ -195,7 +195,7 @@ func (h *Handler) UpdateBalance(w http.ResponseWriter, r *http.Request) {
 		zap.String("address", address),
 		zap.Float64("new_balance", req.Balance),
 	)
-	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Balance updated successfully"})
+	h.writeJSON(ctx, w, http.StatusOK, map[string]string{"message": "Balance updated successfully"})
 }
 
 func (h *Handler) RemoveWallet(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +204,7 @@ func (h *Handler) RemoveWallet(w http.ResponseWriter, r *http.Request) {
 
 	address, code, msg := h.parseAndValidateAddress(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -230,5 +230,5 @@ func (h *Handler) RemoveWallet(w http.ResponseWriter, r *http.Request) {
 		op+"wallet removed successfully",
 		zap.String("address", address),
 	)
-	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Wallet removed successfully"})
+	h.writeJSON(ctx, w, http.StatusOK, map[string]string{"message": "Wallet removed successfully"})
 } 

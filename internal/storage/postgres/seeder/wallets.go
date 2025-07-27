@@ -11,11 +11,11 @@ import (
 
 // Ошибки для обработки в вызывающем коде (main)
 var (
-	ErrDisabled  = errors.New("WARN: wallet seeder disabled")
-	ErrCompleted = errors.New("WARN: seeder already executed")
+	ErrDisabled  = errors.New("wallet seeder disabled")
+	ErrCompleted = errors.New("seeder already executed")
 )
 
-type CreateWalletsForSeeding func(context.Context, int, float64, bool) (<-chan string, <-chan error) 
+type CreateWalletsForSeeding func(context.Context, int, float64, bool) (<-chan string, <-chan error, bool) 
 type LogError func(context.Context, error)
 
 func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart CreateWalletsForSeeding, log LogError) error {
@@ -38,12 +38,16 @@ func SeedWallets(ctx context.Context, cfg config.WalletsSeedConfig, createStart 
 	defer markerFile.Close()
 
 	ctx, cancel := context.WithCancel(ctx)
-	done, errChan := createStart(
+	done, errChan, flag := createStart(
 		ctx,
 		cfg.Count,
 		cfg.Balance,
 		cfg.FailOnError,
 	)
+
+	if !flag {
+		return fmt.Errorf("seeding start failed")
+	}
 
 	for {
 		select {

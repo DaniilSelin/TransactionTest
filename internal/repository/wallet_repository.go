@@ -15,7 +15,7 @@ func NewWalletRepository(db IDB) *WalletRepository {
 	return &WalletRepository{db: db}
 }
 
-func (tr *WalletRepository) BeginTX(ctx) (ITx, error) {
+func (tr *WalletRepository) BeginTX(ctx context.Context) (domain.TxExecutor, error) {
     tx, err := tr.db.Begin(ctx)
     if err != nil {
         return nil, fmt.Errorf("begin transaction: %w", err)
@@ -119,7 +119,7 @@ func (wr *WalletRepository) RemoveWallet(ctx context.Context, address string) er
 	return nil
 }
 
-func (wr *WalletRepository) CreateWalletTx(ctx context.Context, tx ITx, address string, balance float64) error {
+func (wr *WalletRepository) CreateWalletTx(ctx context.Context, tx domain.TxExecutor, address string, balance float64) error {
 	query := `INSERT INTO wallets (address, balance) VALUES ($1, $2)`
 	_, err := tx.Exec(ctx, query, address, balance)
 	if err != nil {
@@ -136,7 +136,7 @@ func (wr *WalletRepository) CreateWalletTx(ctx context.Context, tx ITx, address 
 	return nil
 }
 
-func (wr *WalletRepository) UpdateWalletBalanceTx(ctx context.Context, tx txAdapter, address string, balance float64) error {
+func (wr *WalletRepository) UpdateWalletBalanceTx(ctx context.Context, tx domain.TxExecutor, address string, balance float64) error {
 	query := `UPDATE wallets SET balance = $1 WHERE address = $2`
 	result, err := tx.Exec(ctx, query, balance, address)
 	if err != nil {

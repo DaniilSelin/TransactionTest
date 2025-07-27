@@ -23,13 +23,13 @@ func (m *mockCreateFunc) create(
 	count int,
 	balance float64,
 	failOnError bool,
-) (<-chan string, <-chan error) {
+) (<-chan string, <-chan error, bool) {
 	args := m.Called(ctx, count, balance, failOnError)
 	
 	doneChan := args.Get(0).(chan string)
 	errChan := args.Get(1).(chan error)
 	
-	return (<-chan string)(doneChan), (<-chan error)(errChan)
+	return (<-chan string)(doneChan), (<-chan error)(errChan), true
 }
 
 func TestSeedWallets_Success(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSeedWallets_Success(t *testing.T) {
 		cfg.FailOnError,
 	).Return(doneChan, errChan)
 
-	err := SeedWallets(context.Background(), cfg, mockCreator.create)
+	err := SeedWallets(context.Background(), cfg, mockCreator.create, func(_ context.Context, _ error) {})
 	assert.NoError(t, err)
 	mockCreator.AssertExpectations(t)
 
@@ -94,7 +94,7 @@ func TestSeedWallets_ErrorFromCreator(t *testing.T) {
 		cfg.FailOnError,
 	).Return(doneChan, errChan).Once()
 
-	err := SeedWallets(context.Background(), cfg, mockCreator.create)
+	err := SeedWallets(context.Background(), cfg, mockCreator.create, func(_ context.Context, _ error) {})
 
 	close(doneChan)
 	close(errChan)
@@ -130,7 +130,7 @@ func TestSeedWallets_WriteError(t *testing.T) {
 	close(doneChan)
 	close(errChan)
 	
-	err := SeedWallets(context.Background(), cfg, mockCreator.create)
+	err := SeedWallets(context.Background(), cfg, mockCreator.create, func(_ context.Context, _ error) {})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "marker")
 }

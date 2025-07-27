@@ -16,7 +16,7 @@ func NewTransactionRepository(db IDB) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
-func (tr *TransactionRepository) BeginTX(ctx) (domain.TxExecutor, error) {
+func (tr *TransactionRepository) BeginTX(ctx context.Context) (domain.TxExecutor, error) {
     tx, err := tr.db.Begin(ctx)
     if err != nil {
         return nil, fmt.Errorf("begin transaction: %w", err)
@@ -49,7 +49,7 @@ func (tr *TransactionRepository) CreateTransaction(ctx context.Context, from, to
 	return transactionId, nil
 }
 
-func (tr *TransactionRepository) CreateTransactionTx(ctx context.Context, tx txAdapter, from, to string, amount float64) (int64, error) {
+func (tr *TransactionRepository) CreateTransactionTx(ctx context.Context, tx domain.TxExecutor, from, to string, amount float64) (int64, error) {
 	query := `INSERT INTO transactions (from_wallet, to_wallet, amount) VALUES ($1, $2, $3) RETURNING id`
 	var transactionId int64
 	err := tx.QueryRow(ctx, query, from, to, amount).Scan(&transactionId)

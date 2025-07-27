@@ -16,7 +16,6 @@ var (
 var (
     ErrNegativeBalance     = errors.New("negative balance not allowed")
     ErrWalletAlreadyExists = errors.New("wallet address already exists")
-    ErrSelfTransfer        = errors.New("cannot transfer to self")
     ErrInsufficientFunds   = errors.New("insufficient funds")
 )
 
@@ -42,4 +41,5 @@ const (
     CodeTransactionNotFound   ErrorCode = "TRANSACTION_NOT_FOUND"
     CodeNegativeAmount        ErrorCode = "NEGATIVE_AMOUNT"
     CodeInvalidTransaction    ErrorCode = "INVALID_TRANSACTION"
+    CodeInvalidRequestBody      ErrorCode = "INVALID_REQUEST_BODY"
 )

@@ -2,45 +2,47 @@ package test
 
 import (
 	"context"
+	"TransactionTest/internal/repository"
+	"TransactionTest/internal/domain"
 )
 
 type MockDB struct {
-	BeginFunc      func(ctx context.Context) (ITx, error)
-	ExecFunc       func(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)
-	QueryRowFunc   func(ctx context.Context, sql string, args ...interface{}) Row
-	QueryFunc      func(ctx context.Context, sql string, args ...interface{}) (Rows, error)
+	BeginFunc      func(ctx context.Context) (repository.ITx, error)
+	ExecFunc       func(ctx context.Context, sql string, arguments ...interface{}) (repository.CommandTag, error)
+	QueryRowFunc   func(ctx context.Context, sql string, args ...interface{}) repository.Row
+	QueryFunc      func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error)
 }
 
-func (m *MockDB) Begin(ctx context.Context) (ITx, error) {
+func (m *MockDB) Begin(ctx context.Context) (repository.ITx, error) {
 	return m.BeginFunc(ctx)
 }
-func (m *MockDB) Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error) {
+func (m *MockDB) Exec(ctx context.Context, sql string, arguments ...interface{}) (repository.CommandTag, error) {
 	return m.ExecFunc(ctx, sql, arguments...)
 }
-func (m *MockDB) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+func (m *MockDB) QueryRow(ctx context.Context, sql string, args ...interface{}) repository.Row {
 	return m.QueryRowFunc(ctx, sql, args...)
 }
-func (m *MockDB) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+func (m *MockDB) Query(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 	return m.QueryFunc(ctx, sql, args...)
 }
 
 type MockTx struct {
 	CommitFunc   func(ctx context.Context) error
 	RollbackFunc func(ctx context.Context) error
-	ExecFunc     func(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)
-	QueryRowFunc func(ctx context.Context, sql string, args ...interface{}) Row
-	QueryFunc    func(ctx context.Context, sql string, args ...interface{}) (Rows, error)
+	ExecFunc     func(ctx context.Context, sql string, arguments ...interface{}) (repository.CommandTag, error)
+	QueryRowFunc func(ctx context.Context, sql string, args ...interface{}) repository.Row
+	QueryFunc    func(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error)
 }
 
-func (m *MockTx) Commit(ctx context.Context) error                 { return m.CommitFunc(ctx) }
-func (m *MockTx) Rollback(ctx context.Context) error               { return m.RollbackFunc(ctx) }
-func (m *MockTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error) {
+func (m MockTx) Commit(ctx context.Context) error                 { return m.CommitFunc(ctx) }
+func (m MockTx) Rollback(ctx context.Context) error               { return m.RollbackFunc(ctx) }
+func (m MockTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (domain.CommandTag, error) {
 	return m.ExecFunc(ctx, sql, arguments...)
 }
-func (m *MockTx) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+func (m MockTx) QueryRow(ctx context.Context, sql string, args ...interface{}) domain.Row {
 	return m.QueryRowFunc(ctx, sql, args...)
 }
-func (m *MockTx) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+func (m MockTx) Query(ctx context.Context, sql string, args ...interface{}) (repository.Rows, error) {
 	return m.QueryFunc(ctx, sql, args...)
 }
 

@@ -3,9 +3,13 @@ package handler
 import (
     "net/http"
     "strconv"
+    "context"
 
     "TransactionTest/internal/delivery/dto"
     "TransactionTest/internal/delivery/validator"
+
+    "go.uber.org/zap"
+    "github.com/gorilla/mux"
 )
 
 // parseAndValidateAddress извлекает извлекает {address} из URL, оборачивает в DTO и валидирует.
@@ -47,7 +51,7 @@ func (h *Handler) parseAndValidateID(
         h.log.Warn(ctx, operation+"id parse failed", zap.Error(err))
         return 0, http.StatusBadRequest, "invalid id"
     }
-    p := dto.IDPath{ID: id}
+    p := dto.TransactionID{ID: id}
     if err := validator.ValidateStruct(p); err != nil {
         h.log.Warn(ctx, operation+"path validation failed", zap.Error(err))
         return 0, http.StatusBadRequest, err.Error()

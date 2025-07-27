@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"TransactionTest/config"
 	"TransactionTest/migrations"
@@ -12,6 +13,8 @@ import (
 	"TransactionTest/internal/service"
 	"TransactionTest/internal/storage/postgres"
 	"TransactionTest/internal/storage/postgres/seeder"
+	"TransactionTest/internal/delivery/http/handler"
+	sourceHttp "TransactionTest/internal/delivery/http"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -83,7 +86,7 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(adapter)
 	walletRepo := repository.NewWalletRepository(adapter)
 
-	_ = service.NewTransactionService(transactionRepo, walletRepo, appLogger)
+	transactionService := service.NewTransactionService(transactionRepo, walletRepo, appLogger)
 	walletService := service.NewWalletService(walletRepo, appLogger)
 
 	seedlog := func(ctx context.Context, err error) {
@@ -93,6 +96,30 @@ func main() {
 	// запускаем создание 10 кошельков
 	err = seeder.SeedWallets(ctx, cfg.Seeding.Wallets, walletService.CreateWalletsForSeeding, seedlog) 
 	if err != nil {
-		appLogger.Fatal(ctx, fmt.Sprintf("FATAL: failed to run seed: %v", err))
+		switch err {
+		case seeder.ErrDisabled:
+			appLogger.Warn(ctx, "seeding disable")
+		case seeder.ErrCompleted:
+			appLogger.Warn(ctx, "seeder already executed")
+		default:	
+			appLogger.Fatal(ctx, fmt.Sprintf("FATAL: failed to run seed: %v", err))
+		}
 	}
+
+
+	hanlder := handler.NewHandler(transactionService, walletService, appLogger)
+
+	router := sourceHttp.NewRouter(hanlder, appLogger)
+
+
+    // Запуск сервера на 0.0.0.0:8080
+    addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+    appLogger.Info(
+    	ctx,
+    	"Starting server",
+    	zap.String("addr", addr),
+    )
+    if err := http.ListenAndServe(addr, router); err != nil {
+        appLogger.Fatal(ctx, "Server failed", zap.Error(err))
+    }
 }

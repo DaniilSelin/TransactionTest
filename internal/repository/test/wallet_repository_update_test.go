@@ -12,7 +12,7 @@ import (
 func TestWalletRepository_UpdateWalletBalance_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 1 }}, nil
 		},
 	}
@@ -24,7 +24,7 @@ func TestWalletRepository_UpdateWalletBalance_Success(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalance_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 0 }}, nil
 		},
 	}
@@ -36,7 +36,7 @@ func TestWalletRepository_UpdateWalletBalance_NotFound(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalance_NegativeBalance(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return nil, &mockDBError{sqlState: repository.ErrCodeCheckViolation, constraint: repository.ConstraintBalanceNonNegative}
 		},
 	}
@@ -48,7 +48,7 @@ func TestWalletRepository_UpdateWalletBalance_NegativeBalance(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalance_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return nil, errors.New("fail")
 		},
 	}
@@ -60,7 +60,7 @@ func TestWalletRepository_UpdateWalletBalance_InternalError(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalanceTx_Success(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 1 }}, nil
 		},
 	}
@@ -72,7 +72,7 @@ func TestWalletRepository_UpdateWalletBalanceTx_Success(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalanceTx_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 0 }}, nil
 		},
 	}
@@ -84,7 +84,7 @@ func TestWalletRepository_UpdateWalletBalanceTx_NotFound(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalanceTx_NegativeBalance(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return nil, &mockDBError{sqlState: repository.ErrCodeCheckViolation, constraint: repository.ConstraintBalanceNonNegative}
 		},
 	}
@@ -96,7 +96,7 @@ func TestWalletRepository_UpdateWalletBalanceTx_NegativeBalance(t *testing.T) {
 func TestWalletRepository_UpdateWalletBalanceTx_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockTx := &MockTx{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return nil, errors.New("fail")
 		},
 	}

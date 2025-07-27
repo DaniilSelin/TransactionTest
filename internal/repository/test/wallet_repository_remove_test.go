@@ -12,7 +12,7 @@ import (
 func TestWalletRepository_RemoveWallet_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 1 }}, nil
 		},
 	}
@@ -24,7 +24,7 @@ func TestWalletRepository_RemoveWallet_Success(t *testing.T) {
 func TestWalletRepository_RemoveWallet_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return &MockCommandTag{RowsAffectedFunc: func() int64 { return 0 }}, nil
 		},
 	}
@@ -36,7 +36,7 @@ func TestWalletRepository_RemoveWallet_NotFound(t *testing.T) {
 func TestWalletRepository_RemoveWallet_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (CommandTag, error) {
+		ExecFunc: func(ctx context.Context, sql string, args ...interface{}) (repository.CommandTag, error) {
 			return nil, errors.New("fail")
 		},
 	}

@@ -124,9 +124,9 @@ func (ws *WalletService) CreateWalletsForSeeding(
 	failOnError bool,
 ) (<-chan string, <-chan error, bool){
 	done := make(chan string)
-	errChan := make(chan error, 1)
+	errChan := make(chan error, count)
 
-	tx, err :=  ws.walletRepo.Begin(ctx)
+	tx, err :=  ws.walletRepo.BeginTX(ctx)
 	if err != nil {
 		ws.log.Error(ctx, "CreateWalletsForSeeding: failed start tx",  zap.Error(err))
 		close(done)
@@ -134,54 +134,62 @@ func (ws *WalletService) CreateWalletsForSeeding(
 		return done, errChan, false
 	}
 
+	rollBack := func(ctx context.Context) {
+		tx.Rollback(ctx)
+		close(done)
+		close(errChan)
+	}
+
 	go func() {
-		defer close(wallets)
 		for i := 0; i < count; i++ {
 			select {
 			case <-ctx.Done():
 				return
 			default:
 				addr := uuid.New().String()
-				domain.Wallet{Address: addr, Balance: balance}
-				if err := ws.walletRepo.CreateWallet(ctx, tx, addr, balance); err != nil {
+				if err := ws.walletRepo.CreateWalletTx(ctx, tx, addr, balance); err != nil {
+					errChan <- err
 					switch {
 					case errors.Is(err, domain.ErrInternal): // Для ускорения проверок
 						ws.log.Error(ctx, "CreateWalletsForSeeding",  zap.Error(err))
 						if failOnError {
-							tx.Rollback(ctx)
+							rollBack(ctx) 
 							return
 						}
 						continue
 					case errors.Is(err, domain.ErrWalletAlreadyExists):
 						ws.log.Warn(ctx, "CreateWalletsForSeeding",  zap.Error(err))
 						if failOnError {
-							tx.Rollback(ctx)
+							rollBack(ctx) 
 							return
 						}
 						continue
 					case errors.Is(err, domain.ErrNegativeBalance): // Никогда не сработает
 						ws.log.Warn(ctx, "CreateWalletsForSeeding",  zap.Error(err))
 						if failOnError {
-							tx.Rollback(ctx)
+							rollBack(ctx) 
 							return
 						}
 						continue
 					default:
 						ws.log.Error(ctx, "CreateWalletsForSeeding: unexpected",  zap.Error(err))
 						if failOnError {
-							tx.Rollback(ctx)
+							rollBack(ctx) 
 							return
 						}
 						continue
 					}
+				} else {
+					done <- addr
 				}
 			}
 		}
-		if batchErr = tx.Commit(ctx); batchErr != nil {
-			errChan <- batchErr
+		if err := tx.Commit(ctx); err != nil {
+			errChan <- err
 		}
-		close(done, errChan)
+		close(done)
+		close(errChan)
 	}()
 
-	return done, errChan
+	return done, errChan, true
 }

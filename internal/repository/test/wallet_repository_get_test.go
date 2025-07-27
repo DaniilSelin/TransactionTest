@@ -12,7 +12,7 @@ import (
 func TestWalletRepository_GetWalletBalance_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				*dest[0].(*float64) = 123.45
 				return nil
@@ -28,7 +28,7 @@ func TestWalletRepository_GetWalletBalance_Success(t *testing.T) {
 func TestWalletRepository_GetWalletBalance_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: "no_rows"}
 			}}
@@ -42,7 +42,7 @@ func TestWalletRepository_GetWalletBalance_NotFound(t *testing.T) {
 func TestWalletRepository_GetWalletBalance_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return errors.New("fail")
 			}}
@@ -56,7 +56,7 @@ func TestWalletRepository_GetWalletBalance_InternalError(t *testing.T) {
 func TestWalletRepository_GetWallet_Success(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				*dest[0].(*string) = "addr"
 				*dest[1].(*float64) = 123.45
@@ -75,7 +75,7 @@ func TestWalletRepository_GetWallet_Success(t *testing.T) {
 func TestWalletRepository_GetWallet_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return &mockDBError{sqlState: "no_rows"}
 			}}
@@ -90,7 +90,7 @@ func TestWalletRepository_GetWallet_NotFound(t *testing.T) {
 func TestWalletRepository_GetWallet_InternalError(t *testing.T) {
 	ctx := context.Background()
 	mockDB := &MockDB{
-		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) Row {
+		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) repository.Row {
 			return &MockRow{ScanFunc: func(dest ...interface{}) error {
 				return errors.New("fail")
 			}}

@@ -23,7 +23,7 @@ func (h *Handler) SendMoney(w http.ResponseWriter, r *http.Request) {
 			op+"failed to decode JSON",
 			zap.Error(err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
 		return
 	}
 
@@ -39,7 +39,7 @@ func (h *Handler) SendMoney(w http.ResponseWriter, r *http.Request) {
 			op+"validation failed",
 			zap.Any("errors", err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, err.Error())
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, err.Error())
 		return
 	}
 
@@ -61,7 +61,7 @@ func (h *Handler) SendMoney(w http.ResponseWriter, r *http.Request) {
 		zap.String("to", req.To),
 		zap.Float64("amount", req.Amount),
 	)
-	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Money sent successfully"})
+	h.writeJSON(ctx, w, http.StatusOK, map[string]string{"message": "Money sent successfully"})
 }
 
 func (h *Handler) GetLastTransactions(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +70,7 @@ func (h *Handler) GetLastTransactions(w http.ResponseWriter, r *http.Request) {
 
 	count, code, msg := h.parseAndValidateCount(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -107,7 +107,7 @@ func (h *Handler) GetLastTransactions(w http.ResponseWriter, r *http.Request) {
 		op+"transactions retrieved successfully",
 		zap.Int("count", len(transactions)),
 	)
-	h.writeJSON(w, http.StatusOK, response)
+	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
 func (h *Handler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +116,7 @@ func (h *Handler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
 
 	id, code, msg := h.parseAndValidateID(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -150,7 +150,7 @@ func (h *Handler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
 		op+"transaction retrieved successfully",
 		zap.Int64("id", id),
 	)
-	h.writeJSON(w, http.StatusOK, response)
+	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
 func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +164,7 @@ func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
 			op+"failed to decode JSON",
 			zap.Error(err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid JSON")
 		return
 	}
 
@@ -173,7 +173,6 @@ func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
 		op+"received request",
 		zap.String("from", req.From),
 		zap.String("to", req.To),
-		zap.Float64("amount", req.Amount),
 		zap.String("createdAt", req.CreatedAt),
 	)
 
@@ -185,11 +184,11 @@ func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
 			zap.String("createdAt", req.CreatedAt),
 			zap.Error(err),
 		)
-		h.writeError(w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid created_at format")
+		h.writeError(ctx, w, http.StatusBadRequest, domain.CodeInvalidRequestBody, "Invalid created_at format")
 		return
 	}
 
-	transaction, srvCode := h.transactionService.GetTransactionByInfo(ctx, req.From, req.To, req.Amount, createdAt)
+	transaction, srvCode := h.transactionService.GetTransactionByInfo(ctx, req.From, req.To, createdAt)
 	if srvCode != domain.CodeOK {
 		h.log.Warn(
 			ctx,
@@ -213,10 +212,9 @@ func (h *Handler) GetTransactionByInfo(w http.ResponseWriter, r *http.Request) {
 		op+"transaction retrieved successfully",
 		zap.String("from", req.From),
 		zap.String("to", req.To),
-		zap.Float64("amount", req.Amount),
 		zap.String("createdAt", req.CreatedAt),
 	)
-	h.writeJSON(w, http.StatusOK, response)
+	h.writeJSON(ctx, w, http.StatusOK, response)
 }
 
 func (h *Handler) RemoveTransaction(w http.ResponseWriter, r *http.Request) {
@@ -225,7 +223,7 @@ func (h *Handler) RemoveTransaction(w http.ResponseWriter, r *http.Request) {
 
 	id, code, msg := h.parseAndValidateID(ctx, r, op)
     if code != 0 {
-        h.writeError(w, code, domain.CodeInvalidRequestBody, msg)
+        h.writeError(ctx, w, code, domain.CodeInvalidRequestBody, msg)
         return
     }
 
@@ -251,5 +249,5 @@ func (h *Handler) RemoveTransaction(w http.ResponseWriter, r *http.Request) {
 		op+"transaction removed successfully",
 		zap.Int64("id", id),
 	)
-	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Transaction removed successfully"})
+	h.writeJSON(ctx, w, http.StatusOK, map[string]string{"message": "Transaction removed successfully"})
 } 
